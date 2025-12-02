@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
 
 interface ProtectedRouteProps {
     children: ReactNode;
@@ -23,14 +23,15 @@ const App: React.FC = () => {
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
                     <Route
-                        path="/dashboard"
+                        path="/home"
                         element={
                             <ProtectedRoute>
-                                <Dashboard />
+                                <Home />
                             </ProtectedRoute>
                         }
                     />
-                    <Route path="/" element={<Navigate to="/dashboard" />} />
+                    <Route path="/dashboard" element={<Navigate to="/home" />} />
+                    <Route path="/" element={<Navigate to="/home" />} />
                 </Routes>
             </div>
         </BrowserRouter>

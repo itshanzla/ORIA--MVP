@@ -54,7 +54,7 @@ const Register: React.FC = () => {
                 const { user, session } = response.data.data;
                 localStorage.setItem('oria_user', JSON.stringify(user));
                 localStorage.setItem('oria_token', session?.access_token || '');
-                navigate('/dashboard');
+                navigate('/home');
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Registration failed. Please try again.');
@@ -65,22 +65,22 @@ const Register: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4 py-8">
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-md relative">
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <h1 className="text-5xl font-bold bg-gradient-to-r from-oria-purple via-oria-blue to-oria-purple bg-clip-text text-transparent mb-2">
+                    <h1 className="text-5xl font-medium text-oria-purple tracking-wide mb-2">
                         ORIA
                     </h1>
                 </div>
 
                 {/* Signup Card */}
-                <div className="bg-oria-gray rounded-3xl p-8 border border-gray-800 shadow-2xl">
-                    <h2 className="text-3xl font-semibold text-white mb-6 text-center">
+                <div className="bg-[#0A0A0A] rounded-[2rem] p-8 border border-gray-800/50 shadow-2xl relative overflow-hidden">
+                    <h2 className="text-3xl font-medium text-white mb-8 text-center tracking-tight">
                         Signup
                     </h2>
 
                     {error && (
-                        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm">
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm">
                             {error}
                         </div>
                     )}
@@ -94,7 +94,7 @@ const Register: React.FC = () => {
                                 onChange={handleChange}
                                 placeholder="Name"
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-purple focus:ring-2 focus:ring-oria-purple/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-purple focus:ring-1 focus:ring-oria-purple/50 transition-all outline-none"
                             />
                         </div>
 
@@ -106,7 +106,7 @@ const Register: React.FC = () => {
                                 onChange={handleChange}
                                 placeholder="Username"
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-purple focus:ring-2 focus:ring-oria-purple/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-purple focus:ring-1 focus:ring-oria-purple/50 transition-all outline-none"
                             />
                         </div>
 
@@ -118,7 +118,7 @@ const Register: React.FC = () => {
                                 onChange={handleChange}
                                 placeholder="Email"
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-purple focus:ring-2 focus:ring-oria-purple/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-purple focus:ring-1 focus:ring-oria-purple/50 transition-all outline-none"
                             />
                         </div>
 
@@ -130,7 +130,7 @@ const Register: React.FC = () => {
                                 onChange={handleChange}
                                 placeholder="Password"
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-purple focus:ring-2 focus:ring-oria-purple/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-purple focus:ring-1 focus:ring-oria-purple/50 transition-all outline-none"
                             />
                         </div>
 
@@ -142,32 +142,32 @@ const Register: React.FC = () => {
                                 onChange={handleChange}
                                 placeholder="Confirm Password"
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-purple focus:ring-2 focus:ring-oria-purple/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-purple focus:ring-1 focus:ring-oria-purple/50 transition-all outline-none"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-oria-purple hover:bg-purple-600 text-white font-semibold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-oria-purple/20 mt-6"
+                            className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-8 tracking-wide uppercase text-sm"
                         >
-                            {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
+                            {loading ? 'Creating Account...' : 'Create Account'}
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center">
-                        <span className="text-gray-400">Already have an account?</span>{' '}
+                    <div className="mt-8 text-center">
+                        <span className="text-gray-500 text-sm">Already have an account?</span>{' '}
                         <Link
                             to="/login"
-                            className="text-oria-purple hover:text-oria-blue transition-colors font-semibold"
+                            className="text-[#8B5CF6] hover:text-[#7C3AED] transition-colors font-medium text-sm ml-1"
                         >
                             Log in
                         </Link>
                     </div>
 
-                    <p className="text-xs text-gray-500 text-center mt-6">
+                    <p className="text-xs text-gray-500 text-center mt-8 leading-relaxed">
                         By signing up you agree to ORIA's<br />
-                        Terms & Privacy.
+                        <span className="text-[#F59E0B] cursor-pointer hover:underline">Terms & Privacy</span>.
                     </p>
                 </div>
             </div>

@@ -37,7 +37,7 @@ const Login: React.FC = () => {
                 const { user, session } = response.data.data;
                 localStorage.setItem('oria_user', JSON.stringify(user));
                 localStorage.setItem('oria_token', session?.access_token || '');
-                navigate('/dashboard');
+                navigate('/home');
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Login failed. Please try again.');
@@ -48,17 +48,17 @@ const Login: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-md relative">
                 {/* Logo */}
                 <div className="text-center mb-12">
-                    <h1 className="text-5xl font-bold bg-gradient-to-r from-oria-purple via-oria-blue to-oria-purple bg-clip-text text-transparent mb-2">
+                    <h1 className="text-5xl font-medium text-oria-purple tracking-wide mb-2">
                         ORIA
                     </h1>
                 </div>
 
                 {/* Login Card */}
-                <div className="bg-oria-gray rounded-3xl p-8 border border-gray-800 shadow-2xl">
-                    <h2 className="text-3xl font-semibold text-white mb-8 text-center">
+                <div className="bg-[#0A0A0A] rounded-[2rem] p-8 border border-gray-800/50 shadow-2xl relative overflow-hidden">
+                    <h2 className="text-3xl font-medium text-white mb-8 text-center tracking-tight">
                         Log in
                     </h2>
 
@@ -70,7 +70,7 @@ const Login: React.FC = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm text-oria-blue mb-2">
+                            <label className="block text-sm text-oria-blue mb-2 font-medium ml-1">
                                 Email
                             </label>
                             <input
@@ -79,13 +79,13 @@ const Login: React.FC = () => {
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-blue focus:ring-2 focus:ring-oria-blue/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-blue focus:ring-1 focus:ring-oria-blue/50 transition-all outline-none"
                                 placeholder="Enter your email"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm text-oria-blue mb-2">
+                            <label className="block text-sm text-oria-blue mb-2 font-medium ml-1">
                                 Password
                             </label>
                             <input
@@ -94,7 +94,7 @@ const Login: React.FC = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 required
-                                className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-oria-blue focus:ring-2 focus:ring-oria-blue/20 transition-all"
+                                className="w-full bg-[#111111] border border-gray-800 rounded-xl px-4 py-4 text-gray-200 placeholder-gray-500 focus:border-oria-blue focus:ring-1 focus:ring-oria-blue/50 transition-all outline-none"
                                 placeholder="Enter your password"
                             />
                         </div>
@@ -102,16 +102,16 @@ const Login: React.FC = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-oria-gold to-yellow-600 hover:from-yellow-600 hover:to-oria-gold text-black font-semibold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-oria-gold/20"
+                            className="w-full bg-gradient-to-r from-[#F59E0B] to-[#D97706] hover:from-[#D97706] hover:to-[#B45309] text-black font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-oria-gold/20 mt-4 tracking-wide uppercase text-sm"
                         >
-                            {loading ? 'SIGNING IN...' : 'CONTINUE'}
+                            {loading ? 'Signing In...' : 'Continue'}
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center">
+                    <div className="mt-8 text-center">
                         <Link
                             to="/register"
-                            className="text-oria-purple hover:text-oria-blue transition-colors"
+                            className="text-[#8B5CF6] hover:text-[#7C3AED] transition-colors font-medium text-sm"
                         >
                             Create an account
                         </Link>
