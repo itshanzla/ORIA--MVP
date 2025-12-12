@@ -3,6 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import nexusRoutes from './routes/nexus.routes.js';
+import assetsRoutes from './routes/assets.routes.js';
+import uploadRoutes from './routes/upload.routes.js';
+import mintRoutes from './routes/mint.routes.js';
 
 dotenv.config();
 
@@ -27,6 +30,9 @@ app.get('/', (req: Request, res: Response) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/nexus', nexusRoutes);
+app.use('/api/assets', assetsRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/mint', mintRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
