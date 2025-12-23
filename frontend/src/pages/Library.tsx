@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { mintAPI } from '../services/api';
 
 type LibraryTab = 'Music' | 'Tickets' | 'Art';
 
@@ -13,34 +14,64 @@ interface MintedAsset {
     price: string;
     isLimited?: boolean;
     limitedSupply?: string;
-    audioUrl: string;
-    audioPath: string;
-    coverUrl: string | null;
-    coverPath: string | null;
-    createdAt: string;
+    audioUrl?: string;
+    audio_url?: string;
+    audioPath?: string;
+    audio_path?: string;
+    coverUrl?: string | null;
+    cover_url?: string | null;
+    coverPath?: string | null;
+    cover_path?: string | null;
+    createdAt?: string;
+    created_at?: string;
     status: string;
+    nexus_address?: string;
+    nexus_txid?: string;
 }
 
 const Library: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<LibraryTab>('Music');
     const [mintedAssets, setMintedAssets] = useState<MintedAsset[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const tabs: LibraryTab[] = ['Music', 'Tickets', 'Art'];
 
-    // Load minted assets from localStorage
+    // Load minted assets from backend API
     useEffect(() => {
-        const loadAssets = () => {
-            const stored = localStorage.getItem('oria_assets');
-            if (stored) {
-                setMintedAssets(JSON.parse(stored));
+        const loadAssets = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const userStr = localStorage.getItem('oria_user');
+                if (!userStr) {
+                    setMintedAssets([]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                const user = JSON.parse(userStr);
+                const response = await mintAPI.getMyAssets(user.id);
+
+                if (response.data.success && response.data.data) {
+                    // Backend returns { assets: [...] } inside data
+                    const assets = response.data.data.assets || response.data.data;
+                    setMintedAssets(Array.isArray(assets) ? assets : []);
+                } else {
+                    setMintedAssets([]);
+                }
+            } catch (err: any) {
+                console.error('Failed to load assets:', err);
+                setError('Failed to load your assets');
+                setMintedAssets([]);
+            } finally {
+                setIsLoading(false);
             }
         };
-        loadAssets();
 
-        // Listen for storage changes
-        window.addEventListener('storage', loadAssets);
-        return () => window.removeEventListener('storage', loadAssets);
+        loadAssets();
     }, []);
 
     const getStatusBadge = (status: string) => {
@@ -109,50 +140,71 @@ const Library: React.FC = () => {
 
             {/* Assets List */}
             <div className="px-5 space-y-4">
-                {mintedAssets.length > 0 ? (
-                    mintedAssets.map((asset, index) => (
+                {isLoading ? (
+                    <div className="text-center py-16">
+                        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-zinc-500">Loading your collection...</p>
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-16">
+                        <p className="text-red-400 mb-4">{error}</p>
                         <button
-                            key={asset.id}
-                            onClick={() => navigate(`/asset/${asset.id}`)}
-                            className="w-full flex items-center gap-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors"
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-zinc-800 rounded-lg text-white text-sm"
                         >
-                            {/* Artwork */}
-                            <div className={`w-16 h-16 rounded-xl flex-shrink-0 relative overflow-hidden ${
-                                !asset.coverUrl ? `bg-gradient-to-br ${getGradientClass(index)}` : ''
-                            }`}>
-                                {asset.coverUrl ? (
-                                    <img
-                                        src={asset.coverUrl}
-                                        alt={asset.title}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <svg className="w-8 h-8 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                                        </svg>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 text-left min-w-0">
-                                <h3 className="text-white font-medium truncate">{asset.title}</h3>
-                                <p className="text-zinc-500 text-sm truncate">{asset.artist}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-zinc-400 text-sm">{asset.price} NXS</span>
-                                    {getStatusBadge(asset.status)}
-                                </div>
-                            </div>
-
-                            {/* Action */}
-                            <div className="flex-shrink-0">
-                                <div className="px-4 py-2 border border-zinc-700 rounded-lg text-white text-sm font-medium">
-                                    View
-                                </div>
-                            </div>
+                            Retry
                         </button>
-                    ))
+                    </div>
+                ) : mintedAssets.length > 0 ? (
+                    mintedAssets.map((asset, index) => {
+                        const coverImage = asset.coverUrl || asset.cover_url;
+                        return (
+                            <button
+                                key={asset.id}
+                                onClick={() => navigate(`/asset/${asset.id}`)}
+                                className="w-full flex items-center gap-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors"
+                            >
+                                {/* Artwork */}
+                                <div className={`w-16 h-16 rounded-xl flex-shrink-0 relative overflow-hidden ${
+                                    !coverImage ? `bg-gradient-to-br ${getGradientClass(index)}` : ''
+                                }`}>
+                                    {coverImage ? (
+                                        <img
+                                            src={coverImage}
+                                            alt={asset.title}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <svg className="w-8 h-8 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Info */}
+                                <div className="flex-1 text-left min-w-0">
+                                    <h3 className="text-white font-medium truncate">{asset.title}</h3>
+                                    <p className="text-zinc-500 text-sm truncate">{asset.artist}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-zinc-400 text-sm">{asset.price} NXS</span>
+                                        {getStatusBadge(asset.status)}
+                                        {asset.nexus_address && (
+                                            <span className="text-xs text-purple-400">On-Chain</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Action */}
+                                <div className="flex-shrink-0">
+                                    <div className="px-4 py-2 border border-zinc-700 rounded-lg text-white text-sm font-medium">
+                                        View
+                                    </div>
+                                </div>
+                            </button>
+                        );
+                    })
                 ) : (
                     <div className="text-center py-16">
                         <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-4">

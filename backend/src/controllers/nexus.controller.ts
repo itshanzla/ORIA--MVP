@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { nexusClient } from '../config/nexus.js';
+import { nexusClient, nexusConfig, validateNodeConnection } from '../config/nexus.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 
 /**
@@ -16,8 +16,8 @@ export const createNexusAccount = async (req: Request, res: Response): Promise<R
             return errorResponse(res, 'Username, password, and PIN are required', 400);
         }
 
-        // Nexus API uses username, password, and PIN for account creation
-        const response = await nexusClient.post('/users/create/user', {
+        // Nexus API uses profiles/create/master for account creation
+        const response = await nexusClient.post('/profiles/create/master', {
             username,
             password,
             pin
@@ -58,7 +58,8 @@ export const loginToNexus = async (req: Request, res: Response): Promise<Respons
             return errorResponse(res, 'Username and password are required', 400);
         }
 
-        const response = await nexusClient.post('/users/login/user', {
+        // Nexus API uses sessions/create/local for login
+        const response = await nexusClient.post('/sessions/create/local', {
             username,
             password,
             pin // PIN is optional for login but needed for transactions
@@ -99,7 +100,8 @@ export const logoutFromNexus = async (req: Request, res: Response): Promise<Resp
             return errorResponse(res, 'Session is required', 400);
         }
 
-        const response = await nexusClient.post('/users/logout/user', { session });
+        // Nexus API uses sessions/terminate/local for logout
+        const response = await nexusClient.post('/sessions/terminate/local', { session });
 
         return successResponse(res, response.data.result, 'Nexus logout successful');
 
@@ -143,6 +145,53 @@ export const getNexusStatus = async (req: Request, res: Response): Promise<Respo
 };
 
 /**
+ * Health check endpoint for blockchain connectivity
+ * GET /api/nexus/health
+ *
+ * Validates:
+ * - Node is reachable
+ * - Node is on testnet (required for MVP)
+ * - Node is synced
+ */
+export const getNodeHealth = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const health = await validateNodeConnection();
+
+        const status = {
+            connected: health.connected,
+            network: nexusConfig.network,
+            testnet: health.testnet,
+            synced: health.synced,
+            version: health.version,
+            mockMode: nexusConfig.isMockMode,
+            platformWalletConfigured: nexusConfig.platformWallet.configured,
+            feeLimits: nexusConfig.feeLimits
+        };
+
+        // Determine overall health
+        const isHealthy = health.connected && health.testnet && health.synced;
+
+        if (!health.connected) {
+            return errorResponse(res, 'Node not reachable', 503, { ...status, error: health.error });
+        }
+
+        if (!health.testnet && !nexusConfig.isMockMode) {
+            return errorResponse(res, 'Node is not on testnet - mainnet not allowed for MVP', 503, status);
+        }
+
+        if (!health.synced) {
+            return successResponse(res, { ...status, warning: 'Node is still syncing' }, 'Node syncing', 200);
+        }
+
+        return successResponse(res, status, isHealthy ? 'Blockchain healthy' : 'Blockchain degraded');
+
+    } catch (error: any) {
+        console.error('Health check error:', error);
+        return errorResponse(res, 'Health check failed', 500, error);
+    }
+};
+
+/**
  * Get user's Nexus profile info
  * GET /api/nexus/profile
  *
@@ -156,7 +205,8 @@ export const getNexusProfile = async (req: Request, res: Response): Promise<Resp
             return errorResponse(res, 'Session is required', 400);
         }
 
-        const response = await nexusClient.get('/users/get/status', {
+        // Nexus API uses sessions/status/local for session status
+        const response = await nexusClient.get('/sessions/status/local', {
             params: { session }
         });
 

@@ -9,7 +9,9 @@ import {
     transferAssetEndpoint,
     confirmTransferEndpoint,
     retryMint,
-    getTransferHistory
+    getTransferHistory,
+    discoverAssets,
+    getTrending
 } from '../controllers/mint.controller.js';
 
 const router = Router();
@@ -34,6 +36,12 @@ router.post('/',
 
 // Get user's assets
 router.get('/my-assets', getMyAssets);
+
+// Discover all public assets (marketplace)
+router.get('/discover', discoverAssets);
+
+// Get trending assets for home page
+router.get('/trending', getTrending);
 
 // Get single asset with blockchain verification
 router.get('/asset/:id', getAsset);

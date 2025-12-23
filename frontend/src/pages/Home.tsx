@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { mintAPI } from '../services/api';
 
-interface AssetItem {
+interface Asset {
     id: string;
     title: string;
     artist: string;
-    priceUSD: string;
-    priceNXS: string;
-    imageUrl?: string;
-    gradientClass: string;
+    price: number;
+    cover_url?: string | null;
+    audio_url?: string;
+    status: string;
+    created_at: string;
+    genre?: string;
 }
 
 const Home: React.FC = () => {
@@ -17,64 +20,106 @@ const Home: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('Music');
     const [activeFilter, setActiveFilter] = useState<string | null>(null);
+    const [trendingAssets, setTrendingAssets] = useState<Asset[]>([]);
+    const [newReleases, setNewReleases] = useState<Asset[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const categories = ['Music', 'Tickets', 'Art'];
     const filters = ['Night Drive', 'Chill', 'Energetic', 'Dark', 'Summer'];
 
-    // Sample trending assets matching client design
-    const trendingAssets: AssetItem[] = [
-        {
-            id: '1',
-            title: 'Serenity',
-            artist: 'Sarah Jones',
-            priceUSD: '$3.99',
-            priceNXS: '0.93 NXS',
-            gradientClass: 'from-violet-600 via-purple-500 to-fuchsia-500'
-        },
-        {
-            id: '2',
-            title: 'The City Lights',
-            artist: 'Jason Reed',
-            priceUSD: '$5.49',
-            priceNXS: '1.29 NXS',
-            gradientClass: 'from-cyan-400 via-blue-500 to-purple-600'
-        },
-        {
-            id: '3',
-            title: 'Into the Abyss',
-            artist: 'Michelle Lee',
-            priceUSD: '$7.99',
-            priceNXS: '1.86 NXS',
-            gradientClass: 'from-indigo-600 via-purple-700 to-pink-600'
-        },
-        {
-            id: '4',
-            title: 'Rhythm of the Night',
-            artist: 'Alex Turner',
-            priceUSD: '$6.99',
-            priceNXS: '1.62 NXS',
-            gradientClass: 'from-rose-500 via-purple-600 to-indigo-600'
-        }
+    // Gradient classes for assets without cover images
+    const gradientClasses = [
+        'from-violet-600 via-purple-500 to-fuchsia-500',
+        'from-cyan-400 via-blue-500 to-purple-600',
+        'from-indigo-600 via-purple-700 to-pink-600',
+        'from-rose-500 via-purple-600 to-indigo-600',
+        'from-teal-400 via-cyan-500 to-blue-600',
+        'from-purple-600 via-violet-600 to-indigo-700'
     ];
 
-    const newReleases: AssetItem[] = [
-        {
-            id: '5',
-            title: 'Ocean Waves',
-            artist: 'Luna Sky',
-            priceUSD: '$4.50',
-            priceNXS: '1.05 NXS',
-            gradientClass: 'from-teal-400 via-cyan-500 to-blue-600'
-        },
-        {
-            id: '6',
-            title: 'Midnight Dreams',
-            artist: 'Nova Star',
-            priceUSD: '$3.25',
-            priceNXS: '0.76 NXS',
-            gradientClass: 'from-purple-600 via-violet-600 to-indigo-700'
-        }
-    ];
+    const getGradientClass = (index: number) => {
+        return gradientClasses[index % gradientClasses.length];
+    };
+
+    // Fetch assets on mount
+    useEffect(() => {
+        const fetchAssets = async () => {
+            setIsLoading(true);
+            try {
+                const [trendingRes, discoverRes] = await Promise.all([
+                    mintAPI.trending(4),
+                    mintAPI.discover(6, 0)
+                ]);
+
+                if (trendingRes.data.success && trendingRes.data.data?.assets) {
+                    setTrendingAssets(trendingRes.data.data.assets);
+                }
+
+                if (discoverRes.data.success && discoverRes.data.data?.assets) {
+                    // Get newest releases (skip trending ones)
+                    const allAssets = discoverRes.data.data.assets;
+                    const trendingIds = new Set(trendingAssets.map(a => a.id));
+                    const releases = allAssets.filter((a: Asset) => !trendingIds.has(a.id)).slice(0, 4);
+                    setNewReleases(releases.length > 0 ? releases : allAssets.slice(4, 8));
+                }
+            } catch (err) {
+                console.error('Failed to fetch assets:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAssets();
+    }, []);
+
+    const formatPrice = (price: number) => {
+        return `${price.toFixed(2)} NXS`;
+    };
+
+    const renderAssetCard = (asset: Asset, index: number) => (
+        <button
+            key={asset.id}
+            onClick={() => navigate(`/asset/${asset.id}`)}
+            className="text-left group"
+        >
+            {/* Album Art */}
+            <div className={`aspect-square rounded-2xl mb-3 relative overflow-hidden ${
+                !asset.cover_url ? `bg-gradient-to-br ${getGradientClass(index)}` : 'bg-zinc-900'
+            }`}>
+                {asset.cover_url ? (
+                    <img
+                        src={asset.cover_url}
+                        alt={asset.title}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <>
+                        <svg className="absolute inset-0 w-full h-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id={`wave-${asset.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="white" stopOpacity="0.1" />
+                                    <stop offset="100%" stopColor="white" stopOpacity="0.3" />
+                                </linearGradient>
+                            </defs>
+                            <path
+                                d="M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z"
+                                fill={`url(#wave-${asset.id})`}
+                            />
+                            <circle cx="70" cy="40" r="20" fill="white" fillOpacity="0.1" />
+                            <circle cx="30" cy="60" r="15" fill="white" fillOpacity="0.15" />
+                        </svg>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white/10 blur-xl" />
+                    </>
+                )}
+            </div>
+            {/* Info */}
+            <h3 className="text-white font-semibold text-base mb-0.5 group-hover:text-purple-400 transition-colors truncate">
+                {asset.title}
+            </h3>
+            <p className="text-zinc-500 text-sm mb-1 truncate">{asset.artist}</p>
+            <p className="text-zinc-400 text-sm">{formatPrice(asset.price)}</p>
+        </button>
+    );
 
     return (
         <div className="min-h-[100dvh] bg-black pb-24">
@@ -147,92 +192,53 @@ const Home: React.FC = () => {
                 </div>
             </div>
 
-            {/* Trending Section */}
-            <section className="px-5 mb-8">
-                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    Trending <span className="text-orange-500">🔥</span> Hot Right Now
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                    {trendingAssets.map((asset) => (
-                        <button
-                            key={asset.id}
-                            onClick={() => navigate(`/asset/${asset.id}`)}
-                            className="text-left group"
-                        >
-                            {/* Album Art */}
-                            <div className={`aspect-square rounded-2xl bg-gradient-to-br ${asset.gradientClass} mb-3 relative overflow-hidden`}>
-                                {/* Abstract wave pattern */}
-                                <svg className="absolute inset-0 w-full h-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <defs>
-                                        <linearGradient id={`wave-${asset.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stopColor="white" stopOpacity="0.1" />
-                                            <stop offset="100%" stopColor="white" stopOpacity="0.3" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path
-                                        d="M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z"
-                                        fill={`url(#wave-${asset.id})`}
-                                    />
-                                    <circle cx="70" cy="40" r="20" fill="white" fillOpacity="0.1" />
-                                    <circle cx="30" cy="60" r="15" fill="white" fillOpacity="0.15" />
-                                </svg>
-                                {/* Glowing orb effect */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white/10 blur-xl" />
-                            </div>
-                            {/* Info */}
-                            <h3 className="text-white font-semibold text-base mb-0.5 group-hover:text-purple-400 transition-colors">
-                                {asset.title}
-                            </h3>
-                            <p className="text-zinc-500 text-sm mb-1">{asset.artist}</p>
-                            <p className="text-zinc-400 text-sm">
-                                {asset.priceUSD} <span className="text-zinc-600">({asset.priceNXS})</span>
-                            </p>
-                        </button>
-                    ))}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
                 </div>
-            </section>
+            ) : trendingAssets.length === 0 && newReleases.length === 0 ? (
+                <div className="px-5 text-center py-16">
+                    <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                    </div>
+                    <h3 className="text-white font-semibold text-lg mb-2">No assets yet</h3>
+                    <p className="text-zinc-500 text-sm mb-6">Be the first to mint an audio asset!</p>
+                    <button
+                        onClick={() => navigate('/mint')}
+                        className="px-6 py-3 bg-purple-600 rounded-xl text-white font-medium hover:bg-purple-700 transition-colors"
+                    >
+                        Mint Asset
+                    </button>
+                </div>
+            ) : (
+                <>
+                    {/* Trending Section */}
+                    {trendingAssets.length > 0 && (
+                        <section className="px-5 mb-8">
+                            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                Trending <span className="text-orange-500">Hot Right Now</span>
+                            </h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                {trendingAssets.map((asset, index) => renderAssetCard(asset, index))}
+                            </div>
+                        </section>
+                    )}
 
-            {/* New Releases Section */}
-            <section className="px-5 mb-8">
-                <h2 className="text-lg font-semibold text-white mb-4">
-                    New Releases
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                    {newReleases.map((asset) => (
-                        <button
-                            key={asset.id}
-                            onClick={() => navigate(`/asset/${asset.id}`)}
-                            className="text-left group"
-                        >
-                            {/* Album Art */}
-                            <div className={`aspect-square rounded-2xl bg-gradient-to-br ${asset.gradientClass} mb-3 relative overflow-hidden`}>
-                                <svg className="absolute inset-0 w-full h-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <defs>
-                                        <linearGradient id={`wave2-${asset.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stopColor="white" stopOpacity="0.1" />
-                                            <stop offset="100%" stopColor="white" stopOpacity="0.3" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path
-                                        d="M0,60 Q30,40 60,60 T100,50 L100,100 L0,100 Z"
-                                        fill={`url(#wave2-${asset.id})`}
-                                    />
-                                    <ellipse cx="60" cy="35" rx="25" ry="18" fill="white" fillOpacity="0.1" />
-                                </svg>
-                                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white/10 blur-2xl" />
+                    {/* New Releases Section */}
+                    {newReleases.length > 0 && (
+                        <section className="px-5 mb-8">
+                            <h2 className="text-lg font-semibold text-white mb-4">
+                                New Releases
+                            </h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                {newReleases.map((asset, index) => renderAssetCard(asset, index + 4))}
                             </div>
-                            {/* Info */}
-                            <h3 className="text-white font-semibold text-base mb-0.5 group-hover:text-purple-400 transition-colors">
-                                {asset.title}
-                            </h3>
-                            <p className="text-zinc-500 text-sm mb-1">{asset.artist}</p>
-                            <p className="text-zinc-400 text-sm">
-                                {asset.priceUSD} <span className="text-zinc-600">({asset.priceNXS})</span>
-                            </p>
-                        </button>
-                    ))}
-                </div>
-            </section>
+                        </section>
+                    )}
+                </>
+            )}
 
             <BottomNav />
         </div>

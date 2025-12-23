@@ -124,6 +124,7 @@ CREATE POLICY "Users can update own assets" ON assets
                 asset_id UUID REFERENCES assets(id),
                 from_user_id UUID NOT NULL,
                 from_genesis VARCHAR(256),
+                to_user_id UUID,
                 to_username VARCHAR(255),
                 to_genesis VARCHAR(256),
                 nexus_txid VARCHAR(256),
@@ -143,6 +144,7 @@ CREATE TABLE asset_transfers (
     asset_id UUID REFERENCES assets(id),
     from_user_id UUID NOT NULL,
     from_genesis VARCHAR(256),
+    to_user_id UUID,
     to_username VARCHAR(255),
     to_genesis VARCHAR(256),
     nexus_txid VARCHAR(256),
@@ -153,6 +155,9 @@ CREATE TABLE asset_transfers (
 );
 
 CREATE INDEX idx_transfers_asset_id ON asset_transfers(asset_id);
+
+-- If table already exists, add the to_user_id column:
+ALTER TABLE asset_transfers ADD COLUMN IF NOT EXISTS to_user_id UUID;
         `);
     } else {
         console.log('✅ Asset transfers table created successfully');

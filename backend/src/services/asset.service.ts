@@ -1,5 +1,10 @@
 import { supabase } from '../config/supabase.js';
 import { nexusClient } from '../config/nexus.js';
+import {
+    canSponsorFee,
+    recordSponsoredFee,
+    isPlatformWalletConfigured
+} from './platform-wallet.service.js';
 
 // Asset status enum
 export const AssetStatus = {
@@ -38,18 +43,12 @@ export interface TransferAssetInput {
     nexusPin?: string;
 }
 
-interface NexusAssetData {
-    title: string;
-    artist: string;
-    description: string;
-    genre: string;
-    price: string;
-    audio_url: string;
-    cover_url: string;
-    is_limited: string;
-    limited_supply: string;
-    created_by: string;
-    created_at: string;
+// Nexus JSON field structure for asset creation
+interface NexusJsonField {
+    name: string;
+    type: 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'bytes';
+    value: string;
+    mutable: boolean;
 }
 
 /**
@@ -106,32 +105,102 @@ export async function createAsset(input: CreateAssetInput) {
 
     try {
         // Step 2: Create asset on Nexus blockchain
-        const nexusData: NexusAssetData = {
-            title,
-            artist,
-            description: description || '',
-            genre: genre || '',
-            price: price.toString(),
-            audio_url: audioUrl,
-            cover_url: coverUrl || '',
-            is_limited: (isLimited || false).toString(),
-            limited_supply: (limitedSupply || 0).toString(),
-            created_by: userId,
-            created_at: new Date().toISOString()
-        };
+        // Nexus API requires format: 'JSON' with json: [] array of field objects
+        // IMPORTANT: Nexus does NOT allow empty string values - use '-' as placeholder
+        const safeValue = (val: string | undefined | null): string => val && val.trim() ? val : '-';
 
-        const nexusResponse = await nexusClient.post('/assets/create/asset', {
-            name: nexusAssetName,
-            data: JSON.stringify(nexusData),
-            format: 'JSON',
-            session: nexusSession,
-            pin: nexusPin
-        });
+        const nexusJsonFields = [
+            { name: 'title', type: 'string', value: safeValue(title), mutable: false },
+            { name: 'artist', type: 'string', value: safeValue(artist), mutable: false },
+            { name: 'description', type: 'string', value: safeValue(description), mutable: false },
+            { name: 'genre', type: 'string', value: safeValue(genre), mutable: false },
+            { name: 'price', type: 'string', value: price.toString() || '0', mutable: true },
+            { name: 'audio_url', type: 'string', value: safeValue(audioUrl), mutable: false },
+            { name: 'cover_url', type: 'string', value: safeValue(coverUrl), mutable: false },
+            { name: 'is_limited', type: 'string', value: (isLimited || false).toString(), mutable: false },
+            { name: 'limited_supply', type: 'string', value: (limitedSupply || 0).toString(), mutable: false },
+            { name: 'created_by', type: 'string', value: safeValue(userId), mutable: false },
+            { name: 'created_at', type: 'string', value: new Date().toISOString(), mutable: false },
+            { name: 'app', type: 'string', value: 'ORIA', mutable: false }
+        ];
 
-        const nexusResult = nexusResponse.data;
+        console.log('Creating Nexus asset:', nexusAssetName);
+        console.log('Session:', nexusSession?.substring(0, 20) + '...');
+        console.log('JSON fields count:', nexusJsonFields.length);
 
-        if (!nexusResult.result) {
-            throw new Error(nexusResult.error?.message || 'Nexus API returned no result');
+        // Retry logic for newly created accounts that may not be fully confirmed
+        let nexusResult: any = null;
+        let lastError = '';
+        const maxRetries = 3;
+        const retryDelay = 5000; // 5 seconds between retries
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`Asset creation attempt ${attempt}/${maxRetries}`);
+
+                const nexusResponse = await nexusClient.post('/assets/create/asset', {
+                    session: nexusSession,
+                    pin: nexusPin,
+                    name: nexusAssetName,
+                    format: 'JSON',
+                    json: nexusJsonFields
+                });
+
+                console.log('Nexus asset response:', JSON.stringify(nexusResponse.data));
+                nexusResult = nexusResponse.data;
+
+                if (nexusResult.result) {
+                    // Success!
+                    break;
+                } else {
+                    lastError = nexusResult.error?.message || 'Nexus API returned no result';
+                    console.error(`Attempt ${attempt} failed:`, lastError);
+
+                    // Check if it's a genesis/timing issue - if so, retry
+                    if (lastError.includes('duplicate genesis-id') || lastError.includes('Failed to accept')) {
+                        if (attempt < maxRetries) {
+                            console.log(`Waiting ${retryDelay/1000}s before retry (genesis may not be confirmed yet)...`);
+                            await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            continue;
+                        }
+                    }
+                    // For other errors, don't retry
+                    break;
+                }
+            } catch (err: any) {
+                lastError = err.response?.data?.error?.message || err.message || 'Unknown error';
+                console.error(`Attempt ${attempt} threw error:`, lastError);
+
+                // Check if it's a timing issue
+                if (lastError.includes('duplicate genesis-id') || lastError.includes('Failed to accept')) {
+                    if (attempt < maxRetries) {
+                        console.log(`Waiting ${retryDelay/1000}s before retry...`);
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        continue;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (!nexusResult?.result) {
+            console.error('Nexus asset creation failed after all retries:', lastError);
+            throw new Error(lastError || 'Failed to create asset on blockchain');
+        }
+
+        // Record platform-sponsored fee
+        const feeCheck = canSponsorFee();
+        if (feeCheck.allowed) {
+            await recordSponsoredFee(
+                userId,
+                'mint',
+                nexusResult.result.txid,
+                0.01, // Standard mint fee
+                dbAsset.id
+            );
+            console.log('Fee sponsored by platform for mint:', nexusResult.result.txid);
+        } else {
+            console.log('Fee paid by user (platform limit reached or not configured)');
         }
 
         // Step 3: Update database with Nexus info
@@ -265,7 +334,7 @@ export async function transferAsset(input: TransferAssetInput) {
         throw new Error('You do not own this asset');
     }
 
-    if (asset.status !== AssetStatus.CONFIRMED) {
+    if (asset.status !== AssetStatus.CONFIRMED && asset.status !== AssetStatus.CONFIRMING) {
         throw new Error(`Asset cannot be transferred. Current status: ${asset.status}`);
     }
 
@@ -273,19 +342,57 @@ export async function transferAsset(input: TransferAssetInput) {
         throw new Error('Asset has no blockchain address');
     }
 
-    // Step 2: Verify ownership on Nexus
+    // Step 2: Find recipient user by username or email
+    // First try to find by nexus_username in profiles table
+    let recipientUserId: string | null = null;
+
+    // Try finding by nexus_username
+    const { data: profileByUsername } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('nexus_username', recipientUsername)
+        .single();
+
+    if (profileByUsername) {
+        recipientUserId = profileByUsername.id;
+    } else {
+        // Try finding by email in auth.users (via profiles or direct lookup)
+        const { data: profileByEmail } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', recipientUsername)
+            .single();
+
+        if (profileByEmail) {
+            recipientUserId = profileByEmail.id;
+        }
+    }
+
+    if (!recipientUserId) {
+        throw new Error(`Recipient "${recipientUsername}" not found. Make sure they have an ORIA account.`);
+    }
+
+    // At this point recipientUserId is guaranteed to be a string
+    const recipientId: string = recipientUserId;
+
+    if (recipientId === userId) {
+        throw new Error('Cannot transfer asset to yourself');
+    }
+
+    // Step 3: Verify ownership on Nexus
     const verification = await verifyAsset(asset.nexus_address);
     if (!verification.verified) {
         throw new Error('Could not verify asset on blockchain');
     }
 
-    // Step 3: Create transfer record
+    // Step 4: Create transfer record
     const { data: transferRecord, error: transferDbError } = await supabase
         .from('asset_transfers')
         .insert({
             asset_id: assetId,
             from_user_id: userId,
             from_genesis: asset.owner_genesis,
+            to_user_id: recipientId,
             to_username: recipientUsername,
             status: 'pending'
         })
@@ -296,7 +403,7 @@ export async function transferAsset(input: TransferAssetInput) {
         throw new Error(`Database error: ${transferDbError.message}`);
     }
 
-    // Step 4: Update asset status
+    // Step 5: Update asset status
     await supabase
         .from('assets')
         .update({
@@ -320,20 +427,49 @@ export async function transferAsset(input: TransferAssetInput) {
             throw new Error(nexusResult.error?.message || 'Transfer failed');
         }
 
-        // Step 6: Update transfer record with txid
+        // Record platform-sponsored fee for transfer
+        const feeCheck = canSponsorFee();
+        if (feeCheck.allowed) {
+            await recordSponsoredFee(
+                userId,
+                'transfer',
+                nexusResult.result.txid,
+                0.01, // Standard transfer fee
+                assetId
+            );
+            console.log('Fee sponsored by platform for transfer:', nexusResult.result.txid);
+        }
+
+        // Step 7: Update transfer record with txid and mark as confirmed
         await supabase
             .from('asset_transfers')
             .update({
                 nexus_txid: nexusResult.result.txid,
                 to_genesis: nexusResult.result.recipient || null,
-                status: 'confirming'
+                status: 'confirmed',
+                confirmed_at: new Date().toISOString()
             })
             .eq('id', transferRecord.id);
+
+        // Step 8: Transfer ownership in database - change user_id to recipient
+        // This allows the asset to appear in recipient's Library
+        await supabase
+            .from('assets')
+            .update({
+                user_id: recipientId,
+                owner_genesis: nexusResult.result.recipient || null,
+                status: AssetStatus.CONFIRMED, // Keep as confirmed so recipient can see it
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', assetId);
+
+        console.log(`Asset ${assetId} transferred from ${userId} to ${recipientId}`);
 
         return {
             success: true,
             transferId: transferRecord.id,
-            txid: nexusResult.result.txid
+            txid: nexusResult.result.txid,
+            recipientUserId: recipientId
         };
 
     } catch (nexusError: any) {
@@ -411,6 +547,42 @@ export async function getUserAssets(userId: string) {
         .eq('user_id', userId)
         .neq('status', AssetStatus.TRANSFERRED)
         .order('created_at', { ascending: false });
+
+    if (error) {
+        throw new Error(`Database error: ${error.message}`);
+    }
+
+    return data;
+}
+
+/**
+ * Get all public assets for discovery (confirmed assets only)
+ */
+export async function getAllPublicAssets(limit: number = 50, offset: number = 0) {
+    const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .in('status', [AssetStatus.CONFIRMED, AssetStatus.CONFIRMING])
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+    if (error) {
+        throw new Error(`Database error: ${error.message}`);
+    }
+
+    return data;
+}
+
+/**
+ * Get trending assets (most recent confirmed assets)
+ */
+export async function getTrendingAssets(limit: number = 10) {
+    const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('status', AssetStatus.CONFIRMED)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
     if (error) {
         throw new Error(`Database error: ${error.message}`);

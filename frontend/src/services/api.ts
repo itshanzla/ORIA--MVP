@@ -223,6 +223,14 @@ export interface TransferAssetData {
 }
 
 export const mintAPI = {
+    // Discover all public assets (marketplace)
+    discover: (limit?: number, offset?: number) =>
+        apiClient.get('/mint/discover', { params: { limit, offset } }),
+
+    // Get trending assets for home page
+    trending: (limit?: number) =>
+        apiClient.get('/mint/trending', { params: { limit } }),
+
     // Mint new asset (upload + register on Nexus blockchain)
     mint: (data: MintAssetData) => {
         const formData = new FormData();

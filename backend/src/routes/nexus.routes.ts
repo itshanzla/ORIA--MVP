@@ -4,7 +4,8 @@ import {
     loginToNexus,
     logoutFromNexus,
     getNexusStatus,
-    getNexusProfile
+    getNexusProfile,
+    getNodeHealth
 } from '../controllers/nexus.controller.js';
 
 const router: Router = express.Router();
@@ -14,8 +15,9 @@ router.post('/create-account', createNexusAccount);
 router.post('/login', loginToNexus);
 router.post('/logout', logoutFromNexus);
 
-// Status & info
+// Status & health
 router.get('/status', getNexusStatus);
+router.get('/health', getNodeHealth);  // Enhanced health check for testnet validation
 router.get('/profile', getNexusProfile);
 
 export default router;

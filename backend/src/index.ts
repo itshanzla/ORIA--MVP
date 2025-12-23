@@ -6,6 +6,7 @@ import nexusRoutes from './routes/nexus.routes.js';
 import assetsRoutes from './routes/assets.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import mintRoutes from './routes/mint.routes.js';
+import { initializePlatformWallet, getDailyFeeStats, isPlatformWalletConfigured } from './services/platform-wallet.service.js';
 
 dotenv.config();
 
@@ -23,7 +24,20 @@ app.get('/', (req: Request, res: Response) => {
         success: true,
         message: 'ORIA Backend API is running',
         version: '1.0.0',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        platformWallet: isPlatformWalletConfigured() ? 'configured' : 'not configured'
+    });
+});
+
+// Platform fee stats endpoint (for admin/monitoring)
+app.get('/api/platform/fees', (req: Request, res: Response) => {
+    const stats = getDailyFeeStats();
+    res.json({
+        success: true,
+        data: {
+            configured: isPlatformWalletConfigured(),
+            ...stats
+        }
     });
 });
 
@@ -52,8 +66,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`🚀 ORIA Backend server running on port ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 API Base URL: http://localhost:${PORT}`);
+
+    // Initialize platform wallet for sponsored fees
+    await initializePlatformWallet();
 });

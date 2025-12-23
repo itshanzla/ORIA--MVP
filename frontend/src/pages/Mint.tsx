@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
-import { uploadAPI } from '../services/api';
+import { mintAPI } from '../services/api';
 
 interface AssetFormData {
     title: string;
@@ -84,26 +84,43 @@ const Mint: React.FC = () => {
             return;
         }
 
+        // Get user info and Nexus session from localStorage
+        const userStr = localStorage.getItem('oria_user');
+        const nexusSession = localStorage.getItem('oria_nexus_session');
+
+        console.log('Mint - User data:', userStr);
+        console.log('Mint - Nexus session:', nexusSession);
+
+        if (!userStr) {
+            setMintError('Please log in to mint assets');
+            return;
+        }
+
+        if (!nexusSession) {
+            setMintError('Blockchain session expired. Please log out and log in again.');
+            return;
+        }
+
+        const user = JSON.parse(userStr);
+
+        // Get PIN from user metadata (stored as base64 encoded)
+        const pinHash = user.user_metadata?.pin_hash;
+        const nexusPin = pinHash ? atob(pinHash) : undefined;
+
+        console.log('Mint - User ID:', user.id);
+        console.log('Mint - Has PIN:', !!nexusPin);
+
         setIsMinting(true);
-        setMintStatus('Uploading files...');
+        setMintStatus('Uploading files to storage...');
         setMintError('');
 
         try {
-            // Upload files to Supabase Storage
-            const uploadResponse = await uploadAPI.uploadAssetFiles(audioFile, coverFile || undefined);
+            setMintStatus('Registering asset on Nexus blockchain...');
 
-            if (!uploadResponse.data.success) {
-                throw new Error(uploadResponse.data.message || 'Upload failed');
-            }
-
-            const { audio, cover } = uploadResponse.data.data;
-
-            setMintStatus('Files uploaded! Registering asset...');
-
-            // Store asset metadata locally for now
-            // In production, this would create an asset on Nexus blockchain
-            const assetData = {
-                id: Date.now().toString(),
+            // Call the mint API which handles both upload and blockchain registration
+            const mintResponse = await mintAPI.mint({
+                audioFile,
+                coverFile: coverFile || undefined,
                 title: formData.title,
                 artist: formData.artist,
                 description: formData.description,
@@ -111,31 +128,39 @@ const Mint: React.FC = () => {
                 price: formData.price,
                 isLimited: formData.isLimited,
                 limitedSupply: formData.limitedSupply,
-                audioUrl: audio.url,
-                audioPath: audio.path,
-                coverUrl: cover?.url || null,
-                coverPath: cover?.path || null,
-                createdAt: new Date().toISOString(),
-                status: 'minted'
-            };
+                userId: user.id,
+                nexusSession,
+                nexusPin
+            });
 
-            // Save to localStorage (temporary - replace with backend storage)
-            const existingAssets = JSON.parse(localStorage.getItem('oria_assets') || '[]');
-            existingAssets.push(assetData);
-            localStorage.setItem('oria_assets', JSON.stringify(existingAssets));
+            console.log('Mint response:', mintResponse.data);
 
-            setMintStatus('Asset minted successfully!');
+            if (!mintResponse.data.success) {
+                throw new Error(mintResponse.data.message || 'Minting failed');
+            }
+
+            const result = mintResponse.data.data;
+
+            setMintStatus('Asset minted successfully on blockchain!');
+            console.log('Minted asset:', result?.asset);
+            console.log('Nexus transaction:', result?.nexus);
 
             // Navigate to library after short delay
             setTimeout(() => {
                 setIsMinting(false);
                 navigate('/library');
-            }, 1500);
+            }, 2000);
 
         } catch (error: any) {
             console.error('Minting error:', error);
-            setMintError(error.response?.data?.message || error.message || 'Failed to mint asset');
+            console.error('Error response:', error.response?.data);
+            const errorMessage = error.response?.data?.message
+                || error.response?.data?.error
+                || error.message
+                || 'Failed to mint asset on blockchain';
+            setMintError(errorMessage);
             setIsMinting(false);
+            setMintStatus('');
         }
     };
 

@@ -8,7 +8,9 @@ import {
     confirmTransfer,
     getUserAssets,
     getAssetWithVerification,
-    retryAssetRegistration
+    retryAssetRegistration,
+    getAllPublicAssets,
+    getTrendingAssets
 } from '../services/asset.service.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 import crypto from 'crypto';
@@ -327,5 +329,40 @@ export const getTransferHistory = async (req: Request, res: Response): Promise<R
 
     } catch (error: any) {
         return errorResponse(res, error.message || 'Failed to get transfer history', 500);
+    }
+};
+
+/**
+ * Get all public assets for discovery/marketplace
+ * GET /api/mint/discover
+ */
+export const discoverAssets = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const offset = parseInt(req.query.offset as string) || 0;
+
+        const assets = await getAllPublicAssets(limit, offset);
+
+        return successResponse(res, { assets }, 'Assets retrieved successfully');
+
+    } catch (error: any) {
+        return errorResponse(res, error.message || 'Failed to get assets', 500);
+    }
+};
+
+/**
+ * Get trending assets for home page
+ * GET /api/mint/trending
+ */
+export const getTrending = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 10;
+
+        const assets = await getTrendingAssets(limit);
+
+        return successResponse(res, { assets }, 'Trending assets retrieved successfully');
+
+    } catch (error: any) {
+        return errorResponse(res, error.message || 'Failed to get trending assets', 500);
     }
 };
