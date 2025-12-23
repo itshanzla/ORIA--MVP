@@ -79,12 +79,21 @@ export async function getPlatformSession(): Promise<string | null> {
         sessionLastRefresh = now;
 
         // Unlock session for transactions
-        await nexusClient.post('/sessions/unlock/local', {
-            session: platformSession,
-            pin: nexusConfig.platformWallet.pin,
-            transactions: true,
-            notifications: true
-        });
+        try {
+            await nexusClient.post('/sessions/unlock/local', {
+                session: platformSession,
+                pin: nexusConfig.platformWallet.pin,
+                transactions: true,
+                notifications: true
+            });
+        } catch (unlockError: any) {
+            // Code -208 means "already unlocked" - this is fine, not an error
+            const errorCode = unlockError.response?.data?.error?.code;
+            if (errorCode !== -208) {
+                throw unlockError; // Re-throw if it's a real error
+            }
+            // Session already unlocked, continue
+        }
 
         console.log('Platform wallet session active:', platformSession!.substring(0, 20) + '...');
         return platformSession;
