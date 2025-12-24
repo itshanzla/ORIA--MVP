@@ -5,7 +5,7 @@ import { successResponse, errorResponse } from '../utils/response.js';
 
 export const signup = async (req: Request, res: Response): Promise<Response> => {
     try {
-        const { email, password, username, name, pin } = req.body;
+        const { email, password, username, name, pin, role } = req.body;
 
         // Validation
         if (!email || !password) {
@@ -16,8 +16,14 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
             return errorResponse(res, 'Username is required (minimum 3 characters)', 400);
         }
 
+        // Enforce lowercase username
+        const lowercaseUsername = username.toLowerCase();
+        if (username !== lowercaseUsername) {
+            return errorResponse(res, 'Username must be in lowercase', 400);
+        }
+
         // Validate username format (alphanumeric only for Nexus)
-        const nexusUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nexusUsername = lowercaseUsername.replace(/[^a-z0-9]/g, '');
         if (nexusUsername.length < 3) {
             return errorResponse(res, 'Username must contain at least 3 alphanumeric characters', 400);
         }
@@ -27,20 +33,25 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
         }
 
         // Check if email already exists in Supabase first
-        const { data: existingUsers } = await supabase
+        const { data: existingByEmail } = await supabase
             .from('profiles')
-            .select('email, username')
-            .or(`email.eq.${email},username.eq.${username}`)
+            .select('email')
+            .eq('email', email)
             .limit(1);
 
-        if (existingUsers && existingUsers.length > 0) {
-            const existing = existingUsers[0];
-            if (existing.email === email) {
-                return errorResponse(res, 'An account with this email already exists', 400);
-            }
-            if (existing.username === username) {
-                return errorResponse(res, 'This username is already taken', 400);
-            }
+        if (existingByEmail && existingByEmail.length > 0) {
+            return errorResponse(res, 'An account with this email already exists', 400);
+        }
+
+        // Check if username already exists (case-insensitive)
+        const { data: existingByUsername } = await supabase
+            .from('profiles')
+            .select('username')
+            .ilike('username', lowercaseUsername)
+            .limit(1);
+
+        if (existingByUsername && existingByUsername.length > 0) {
+            return errorResponse(res, 'This username is already taken', 400);
         }
 
         // Step 1: Create Nexus blockchain account
@@ -108,14 +119,18 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
             return errorResponse(res, 'Blockchain account creation failed. Please try again.', 500);
         }
 
+        // Validate role
+        const userRole = role === 'listener' ? 'listener' : 'creator';
+
         // Step 2: Create Supabase account with Nexus info
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
-                    username,
-                    name: name || username,
+                    username: lowercaseUsername,
+                    name: name || lowercaseUsername,
+                    role: userRole,
                     nexus_username: nexusUsername,
                     nexus_genesis: nexusGenesis,
                     nexus_txid: nexusTxid,

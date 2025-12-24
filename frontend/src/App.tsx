@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
 // Pages
 import Login from './pages/Login';
@@ -23,6 +24,34 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 const App: React.FC = () => {
     return (
         <BrowserRouter>
+            <Toaster
+                position="top-center"
+                toastOptions={{
+                    duration: 4000,
+                    style: {
+                        background: '#1a1a2e',
+                        color: '#fff',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                    },
+                    success: {
+                        iconTheme: {
+                            primary: '#10b981',
+                            secondary: '#fff',
+                        },
+                    },
+                    error: {
+                        iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                        },
+                        style: {
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                        },
+                    },
+                }}
+            />
             <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={<Login />} />

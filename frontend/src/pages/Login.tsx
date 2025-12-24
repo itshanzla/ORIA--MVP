@@ -1,5 +1,6 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { authAPI } from '../services/api';
 import Loader from '../components/Loader';
 
@@ -50,13 +51,14 @@ const Login: React.FC = () => {
                 if (nexusSession) {
                     localStorage.setItem('oria_nexus_session', nexusSession);
                 }
+                toast.success('Login successful!');
                 // Use replace to prevent back button going to login
                 navigate('/home', { replace: true });
             } else {
-                setError(response.data.message || 'Login failed');
+                toast.error(response.data.message || 'Login failed');
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed. Please try again.');
+            toast.error(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }

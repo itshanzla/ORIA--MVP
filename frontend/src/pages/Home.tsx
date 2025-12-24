@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
 import { mintAPI } from '../services/api';
 
@@ -13,7 +14,10 @@ interface Asset {
     status: string;
     created_at: string;
     genre?: string;
+    nexus_address?: string;
 }
+
+type UserRole = 'creator' | 'listener';
 
 const Home: React.FC = () => {
     const navigate = useNavigate();
@@ -22,7 +26,9 @@ const Home: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<string | null>(null);
     const [trendingAssets, setTrendingAssets] = useState<Asset[]>([]);
     const [newReleases, setNewReleases] = useState<Asset[]>([]);
+    const [myAssets, setMyAssets] = useState<Asset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [userRole, setUserRole] = useState<UserRole>('listener');
 
     const categories = ['Music', 'Tickets', 'Art'];
     const filters = ['Night Drive', 'Chill', 'Energetic', 'Dark', 'Summer'];
@@ -41,36 +47,65 @@ const Home: React.FC = () => {
         return gradientClasses[index % gradientClasses.length];
     };
 
-    // Fetch assets on mount
+    // Get user role on mount
+    useEffect(() => {
+        const userStr = localStorage.getItem('oria_user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                const role = user.user_metadata?.role || 'listener';
+                setUserRole(role);
+            } catch (e) {
+                console.error('Failed to parse user data:', e);
+            }
+        }
+    }, []);
+
+    // Fetch assets based on role
     useEffect(() => {
         const fetchAssets = async () => {
             setIsLoading(true);
             try {
-                const [trendingRes, discoverRes] = await Promise.all([
-                    mintAPI.trending(4),
-                    mintAPI.discover(6, 0)
-                ]);
+                if (userRole === 'creator') {
+                    // Creators only see their own assets
+                    const userStr = localStorage.getItem('oria_user');
+                    if (userStr) {
+                        const user = JSON.parse(userStr);
+                        const response = await mintAPI.getMyAssets(user.id);
+                        if (response.data.success && response.data.data) {
+                            const assets = response.data.data.assets || response.data.data;
+                            setMyAssets(Array.isArray(assets) ? assets : []);
+                        }
+                    }
+                } else {
+                    // Listeners see trending and discover
+                    const [trendingRes, discoverRes] = await Promise.all([
+                        mintAPI.trending(4),
+                        mintAPI.discover(6, 0)
+                    ]);
 
-                if (trendingRes.data.success && trendingRes.data.data?.assets) {
-                    setTrendingAssets(trendingRes.data.data.assets);
-                }
+                    if (trendingRes.data.success && trendingRes.data.data?.assets) {
+                        setTrendingAssets(trendingRes.data.data.assets);
+                    }
 
-                if (discoverRes.data.success && discoverRes.data.data?.assets) {
-                    // Get newest releases (skip trending ones)
-                    const allAssets = discoverRes.data.data.assets;
-                    const trendingIds = new Set(trendingAssets.map(a => a.id));
-                    const releases = allAssets.filter((a: Asset) => !trendingIds.has(a.id)).slice(0, 4);
-                    setNewReleases(releases.length > 0 ? releases : allAssets.slice(4, 8));
+                    if (discoverRes.data.success && discoverRes.data.data?.assets) {
+                        // Get newest releases (skip trending ones)
+                        const allAssets = discoverRes.data.data.assets;
+                        const trendingIds = new Set(trendingAssets.map(a => a.id));
+                        const releases = allAssets.filter((a: Asset) => !trendingIds.has(a.id)).slice(0, 4);
+                        setNewReleases(releases.length > 0 ? releases : allAssets.slice(4, 8));
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch assets:', err);
+                toast.error('Failed to load assets');
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchAssets();
-    }, []);
+    }, [userRole]);
 
     const formatPrice = (price: number) => {
         return `${price.toFixed(2)} NXS`;
@@ -121,6 +156,95 @@ const Home: React.FC = () => {
         </button>
     );
 
+    // Creator Dashboard - shows only their own assets
+    if (userRole === 'creator') {
+        return (
+            <div className="min-h-[100dvh] bg-black pb-24">
+                {/* Header */}
+                <header className="pt-12 pb-4 px-5">
+                    <h1 className="text-center text-2xl font-light tracking-wider">
+                        <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-violet-400 bg-clip-text text-transparent">
+                            ORIA
+                        </span>
+                    </h1>
+                </header>
+
+                {/* Creator Dashboard Title */}
+                <div className="px-5 mb-6">
+                    <h2 className="text-2xl font-bold text-white">My Dashboard</h2>
+                    <p className="text-zinc-500 text-sm mt-1">{myAssets.length} assets created</p>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="px-5 mb-6">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                            <p className="text-zinc-500 text-sm">Total Assets</p>
+                            <p className="text-2xl font-bold text-white">{myAssets.length}</p>
+                        </div>
+                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                            <p className="text-zinc-500 text-sm">On Blockchain</p>
+                            <p className="text-2xl font-bold text-purple-400">
+                                {myAssets.filter(a => a.nexus_address).length}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Category Tabs */}
+                <div className="px-5 mb-4">
+                    <div className="flex items-center gap-6">
+                        {categories.map((category) => (
+                            <button
+                                key={category}
+                                onClick={() => setActiveCategory(category)}
+                                className={`text-base font-medium transition-colors ${
+                                    activeCategory === category
+                                        ? 'text-white'
+                                        : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                            >
+                                {category}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="w-10 h-10 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : myAssets.length === 0 ? (
+                    <div className="px-5 text-center py-16">
+                        <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-10 h-10 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                            </svg>
+                        </div>
+                        <h3 className="text-white font-semibold text-lg mb-2">No assets yet</h3>
+                        <p className="text-zinc-500 text-sm mb-6">Start by minting your first audio asset!</p>
+                        <button
+                            onClick={() => navigate('/mint')}
+                            className="px-6 py-3 bg-purple-600 rounded-xl text-white font-medium hover:bg-purple-700 transition-colors"
+                        >
+                            Mint Asset
+                        </button>
+                    </div>
+                ) : (
+                    <section className="px-5 mb-8">
+                        <h2 className="text-lg font-semibold text-white mb-4">My Assets</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            {myAssets.map((asset, index) => renderAssetCard(asset, index))}
+                        </div>
+                    </section>
+                )}
+
+                <BottomNav />
+            </div>
+        );
+    }
+
+    // Listener Dashboard - shows explore/discover content
     return (
         <div className="min-h-[100dvh] bg-black pb-24">
             {/* Header */}
@@ -204,13 +328,7 @@ const Home: React.FC = () => {
                         </svg>
                     </div>
                     <h3 className="text-white font-semibold text-lg mb-2">No assets yet</h3>
-                    <p className="text-zinc-500 text-sm mb-6">Be the first to mint an audio asset!</p>
-                    <button
-                        onClick={() => navigate('/mint')}
-                        className="px-6 py-3 bg-purple-600 rounded-xl text-white font-medium hover:bg-purple-700 transition-colors"
-                    >
-                        Mint Asset
-                    </button>
+                    <p className="text-zinc-500 text-sm mb-6">No music available to explore yet.</p>
                 </div>
             ) : (
                 <>

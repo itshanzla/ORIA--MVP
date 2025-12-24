@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
 import { mintAPI } from '../services/api';
 
@@ -80,7 +81,7 @@ const Mint: React.FC = () => {
 
     const handleMint = async () => {
         if (!audioFile) {
-            setMintError('Audio file is required');
+            toast.error('Audio file is required');
             return;
         }
 
@@ -92,12 +93,12 @@ const Mint: React.FC = () => {
         console.log('Mint - Nexus session:', nexusSession);
 
         if (!userStr) {
-            setMintError('Please log in to mint assets');
+            toast.error('Please log in to mint assets');
             return;
         }
 
         if (!nexusSession) {
-            setMintError('Blockchain session expired. Please log out and log in again.');
+            toast.error('Blockchain session expired. Please log out and log in again.');
             return;
         }
 
@@ -145,6 +146,8 @@ const Mint: React.FC = () => {
             console.log('Minted asset:', result?.asset);
             console.log('Nexus transaction:', result?.nexus);
 
+            toast.success('Asset minted successfully!');
+
             // Navigate to library after short delay
             setTimeout(() => {
                 setIsMinting(false);
@@ -158,6 +161,7 @@ const Mint: React.FC = () => {
                 || error.response?.data?.error
                 || error.message
                 || 'Failed to mint asset on blockchain';
+            toast.error(errorMessage);
             setMintError(errorMessage);
             setIsMinting(false);
             setMintStatus('');

@@ -28,10 +28,16 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
+        // Only redirect on 401 if we're not already on login/register page
+        // and only if it's a real 401 response (not network error)
         if (error.response?.status === 401) {
-            localStorage.removeItem('oria_token');
-            localStorage.removeItem('oria_user');
-            window.location.href = '/login';
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/login' && currentPath !== '/register') {
+                localStorage.removeItem('oria_token');
+                localStorage.removeItem('oria_user');
+                localStorage.removeItem('oria_nexus_session');
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
@@ -43,6 +49,7 @@ interface SignupData {
     username?: string;
     name?: string;
     pin?: string;
+    role?: 'creator' | 'listener';
 }
 
 interface LoginData {
@@ -52,8 +59,9 @@ interface LoginData {
 
 // Auth API
 export const authAPI = {
-    signup: (data: SignupData) => apiClient.post('/auth/signup', data),
-    login: (data: LoginData) => apiClient.post('/auth/login', data),
+    // Signup requires longer timeout due to Nexus blockchain account creation (~6-10s latency)
+    signup: (data: SignupData) => apiClient.post('/auth/signup', data, { timeout: 60000 }),
+    login: (data: LoginData) => apiClient.post('/auth/login', data, { timeout: 30000 }),
     logout: () => apiClient.post('/auth/logout'),
 };
 

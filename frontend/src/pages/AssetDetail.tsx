@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
 import { mintAPI } from '../services/api';
 
@@ -483,6 +484,7 @@ const AssetDetail: React.FC = () => {
                                         const nexusSession = localStorage.getItem('oria_nexus_session');
 
                                         if (!userStr || !nexusSession) {
+                                            toast.error('Please log in again to transfer assets');
                                             setTransferError('Please log in again to transfer assets');
                                             setTransferring(false);
                                             return;
@@ -495,7 +497,7 @@ const AssetDetail: React.FC = () => {
                                         const response = await mintAPI.transfer({
                                             assetId: asset.id,
                                             userId: user.id,
-                                            recipientUsername: recipientAddress.trim().replace('@', ''),
+                                            recipientUsername: recipientAddress.trim(),
                                             nexusSession,
                                             nexusPin: pin
                                         });
@@ -503,18 +505,21 @@ const AssetDetail: React.FC = () => {
                                         if (response.data.success) {
                                             setShowTransferModal(false);
                                             setRecipientAddress('');
-                                            // Navigate to library with success message
-                                            navigate('/library', { state: { message: 'Asset transferred successfully!' } });
+                                            toast.success('Asset transferred successfully!');
+                                            // Navigate to library
+                                            navigate('/library');
                                         } else {
-                                            setTransferError(response.data.message || 'Transfer failed');
+                                            const errorMsg = response.data.message || 'Transfer failed';
+                                            toast.error(errorMsg);
+                                            setTransferError(errorMsg);
                                         }
                                     } catch (err: any) {
                                         console.error('Transfer error:', err);
-                                        setTransferError(
-                                            err.response?.data?.message ||
+                                        const errorMsg = err.response?.data?.message ||
                                             err.message ||
-                                            'Failed to transfer asset. Please try again.'
-                                        );
+                                            'Failed to transfer asset. Please try again.';
+                                        toast.error(errorMsg);
+                                        setTransferError(errorMsg);
                                     } finally {
                                         setTransferring(false);
                                     }

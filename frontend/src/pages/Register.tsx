@@ -1,5 +1,6 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { authAPI } from '../services/api';
 import Loader from '../components/Loader';
 
@@ -28,7 +29,7 @@ const Register: React.FC = () => {
     const [error, setError] = useState<string>('');
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
-    const [selectedRole, setSelectedRole] = useState<UserRole>('listener');
+    const [selectedRole, setSelectedRole] = useState<UserRole>('creator');
     const [agreeToTerms, setAgreeToTerms] = useState<boolean>(false);
 
     // Redirect if already logged in
@@ -40,9 +41,14 @@ const Register: React.FC = () => {
     }, [navigate]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
+        const { name, value } = e.target;
+
+        // Auto-convert username to lowercase
+        const processedValue = name === 'username' ? value.toLowerCase() : value;
+
         setFormData({
             ...formData,
-            [e.target.name]: e.target.value
+            [name]: processedValue
         });
         setError('');
     };
@@ -53,25 +59,31 @@ const Register: React.FC = () => {
         setError('');
 
         if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
+            toast.error('Passwords do not match');
             setLoading(false);
             return;
         }
 
         if (formData.password.length < 8) {
-            setError('Password must be at least 8 characters');
+            toast.error('Password must be at least 8 characters');
             setLoading(false);
             return;
         }
 
         if (!agreeToTerms) {
-            setError('Please agree to the Terms & Privacy Policy');
+            toast.error('Please agree to the Terms & Privacy Policy');
+            setLoading(false);
+            return;
+        }
+
+        if (!formData.username || formData.username.length < 3) {
+            toast.error('Username must be at least 3 characters');
             setLoading(false);
             return;
         }
 
         if (!formData.pin || formData.pin.length < 4) {
-            setError('PIN must be at least 4 characters');
+            toast.error('PIN must be at least 4 characters');
             setLoading(false);
             return;
         }
@@ -82,7 +94,8 @@ const Register: React.FC = () => {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
-                pin: formData.pin
+                pin: formData.pin,
+                role: selectedRole
             });
 
             if (response.data.success) {
@@ -93,12 +106,13 @@ const Register: React.FC = () => {
                 if (nexusSession) {
                     localStorage.setItem('oria_nexus_session', nexusSession);
                 }
+                toast.success('Account created successfully!');
                 navigate('/home', { replace: true });
             } else {
-                setError(response.data.message || 'Registration failed');
+                toast.error(response.data.message || 'Registration failed');
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Registration failed. Please try again.');
+            toast.error(err.response?.data?.message || 'Registration failed. Please try again.');
         } finally {
             setLoading(false);
         }

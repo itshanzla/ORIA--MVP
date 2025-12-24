@@ -343,33 +343,75 @@ export async function transferAsset(input: TransferAssetInput) {
     }
 
     // Step 2: Find recipient user by username or email
-    // First try to find by nexus_username in profiles table
+    // We need both the user ID (for database) and nexus_username (for blockchain)
     let recipientUserId: string | null = null;
+    let recipientNexusUsername: string | null = null;
 
-    // Try finding by nexus_username
-    const { data: profileByUsername } = await supabase
+    // Try finding by nexus_username in profiles table
+    const { data: profileByNexusUsername } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, nexus_username')
         .eq('nexus_username', recipientUsername)
         .single();
 
-    if (profileByUsername) {
-        recipientUserId = profileByUsername.id;
-    } else {
-        // Try finding by email in auth.users (via profiles or direct lookup)
+    if (profileByNexusUsername) {
+        recipientUserId = profileByNexusUsername.id;
+        recipientNexusUsername = profileByNexusUsername.nexus_username;
+    }
+
+    // Try finding by username in profiles table
+    if (!recipientUserId) {
+        const { data: profileByUsername } = await supabase
+            .from('profiles')
+            .select('id, nexus_username')
+            .ilike('username', recipientUsername)
+            .single();
+
+        if (profileByUsername) {
+            recipientUserId = profileByUsername.id;
+            recipientNexusUsername = profileByUsername.nexus_username;
+        }
+    }
+
+    // Try finding by email in profiles table (if email column exists)
+    if (!recipientUserId) {
         const { data: profileByEmail } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, nexus_username')
             .eq('email', recipientUsername)
             .single();
 
         if (profileByEmail) {
             recipientUserId = profileByEmail.id;
+            recipientNexusUsername = profileByEmail.nexus_username;
+        }
+    }
+
+    // Try finding by email in auth.users via admin lookup
+    if (!recipientUserId && recipientUsername.includes('@')) {
+        try {
+            const { data: authUsers } = await supabase.auth.admin.listUsers();
+            if (authUsers?.users) {
+                const foundUser = authUsers.users.find(
+                    u => u.email?.toLowerCase() === recipientUsername.toLowerCase()
+                );
+                if (foundUser) {
+                    recipientUserId = foundUser.id;
+                    // Get nexus_username from user metadata
+                    recipientNexusUsername = foundUser.user_metadata?.nexus_username || null;
+                }
+            }
+        } catch (adminErr) {
+            console.error('Admin lookup failed:', adminErr);
         }
     }
 
     if (!recipientUserId) {
         throw new Error(`Recipient "${recipientUsername}" not found. Make sure they have an ORIA account.`);
+    }
+
+    if (!recipientNexusUsername) {
+        throw new Error(`Recipient does not have a blockchain account. They need to register first.`);
     }
 
     // At this point recipientUserId is guaranteed to be a string
@@ -379,10 +421,13 @@ export async function transferAsset(input: TransferAssetInput) {
         throw new Error('Cannot transfer asset to yourself');
     }
 
-    // Step 3: Verify ownership on Nexus
-    const verification = await verifyAsset(asset.nexus_address);
-    if (!verification.verified) {
-        throw new Error('Could not verify asset on blockchain');
+    // Step 3: Verify ownership on Nexus (skip if asset is already confirmed in DB)
+    // This allows transfers to work even if Nexus node is temporarily unavailable
+    if (asset.status !== AssetStatus.CONFIRMED && asset.status !== AssetStatus.CONFIRMING) {
+        const verification = await verifyAsset(asset.nexus_address);
+        if (!verification.verified) {
+            throw new Error('Could not verify asset on blockchain');
+        }
     }
 
     // Step 4: Create transfer record
@@ -413,10 +458,10 @@ export async function transferAsset(input: TransferAssetInput) {
         .eq('id', assetId);
 
     try {
-        // Step 5: Call Nexus transfer API
+        // Step 5: Call Nexus transfer API (use nexus_username, not email/username)
         const nexusResponse = await nexusClient.post('/assets/transfer/asset', {
             address: asset.nexus_address,
-            recipient: recipientUsername,
+            recipient: recipientNexusUsername,
             session: nexusSession,
             pin: nexusPin
         });

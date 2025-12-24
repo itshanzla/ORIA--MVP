@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
 
 interface UserData {
@@ -50,10 +51,17 @@ const Profile: React.FC = () => {
         localStorage.removeItem('oria_token');
         localStorage.removeItem('oria_nexus_session');
         localStorage.removeItem('oria_assets');
+        toast.success('Logged out successfully');
         navigate('/login');
     };
 
     const handleSave = () => {
+        // Validate username is lowercase
+        if (formData.username !== formData.username.toLowerCase()) {
+            toast.error('Username must be in lowercase');
+            return;
+        }
+
         // Update local storage with new data
         const updatedUser = {
             ...user,
@@ -61,13 +69,14 @@ const Profile: React.FC = () => {
             user_metadata: {
                 ...user?.user_metadata,
                 name: formData.name,
-                username: formData.username,
+                username: formData.username.toLowerCase(),
                 bio: formData.bio
             }
         };
         localStorage.setItem('oria_user', JSON.stringify(updatedUser));
         setUser(updatedUser);
         setIsEditing(false);
+        toast.success('Profile updated successfully');
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

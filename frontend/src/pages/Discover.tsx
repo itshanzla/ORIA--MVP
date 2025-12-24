@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
 import { mintAPI } from '../services/api';
 
@@ -49,6 +50,7 @@ const Discover: React.FC = () => {
                 }
             } catch (err) {
                 console.error('Failed to fetch assets:', err);
+                toast.error('Failed to load assets');
             } finally {
                 setIsLoading(false);
             }

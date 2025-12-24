@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
 import { mintAPI } from '../services/api';
 
@@ -64,7 +65,9 @@ const Library: React.FC = () => {
                 }
             } catch (err: any) {
                 console.error('Failed to load assets:', err);
-                setError('Failed to load your assets');
+                const errorMsg = 'Failed to load your assets';
+                toast.error(errorMsg);
+                setError(errorMsg);
                 setMintedAssets([]);
             } finally {
                 setIsLoading(false);
