@@ -298,4 +298,19 @@ export const mintAPI = {
         apiClient.get(`/mint/transfers/${assetId}`)
 };
 
+// Plays API - Track audio playback
+export const playsAPI = {
+    // Record a play start (once per session per asset)
+    recordPlay: (assetId: string, userId?: string, sessionId?: string) =>
+        apiClient.post(`/plays/${assetId}`, { userId, sessionId }),
+
+    // Record play completion
+    recordComplete: (assetId: string, userId?: string, sessionId?: string) =>
+        apiClient.post(`/plays/${assetId}/complete`, { userId, sessionId }),
+
+    // Get play statistics for an asset
+    getStats: (assetId: string) =>
+        apiClient.get(`/plays/${assetId}/stats`)
+};
+
 export default apiClient;

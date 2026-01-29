@@ -1,304 +1,282 @@
 # ORIA - Digital Music & NFT Marketplace
 
-A mobile-first PWA for minting, collecting, and transferring audio NFTs on the Nexus blockchain.
+A mobile app for creating, collecting, and sharing digital music on the blockchain.
 
-## Project Status: MVP Development
+---
 
-### Completed Features
+## What is ORIA?
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| User Authentication | ✅ Complete | Supabase auth with auto Nexus wallet creation |
-| Audio Upload | ✅ Complete | Upload to Supabase Storage (50MB max) |
-| Cover Art Upload | ✅ Complete | Image upload for NFT artwork |
-| Asset Minting UI | ✅ Complete | 5-step wizard flow |
-| Audio Player | ✅ Complete | Play/pause, seek, progress bar |
-| Library View | ✅ Complete | View all minted assets |
-| Asset Detail | ✅ Complete | Full asset view with playback |
-| Transfer UI | ✅ Complete | Transfer ownership modal |
-| Blockchain Integration | ✅ Complete | Nexus API integration (mock + real) |
-| Database Schema | ✅ Complete | Supabase tables for assets & transfers |
+ORIA lets musicians and fans:
+- **Create** digital music NFTs (like owning a unique digital record)
+- **Collect** music from your favorite artists
+- **Transfer** ownership to others
+- **Verify** authenticity on the blockchain
 
-## Tech Stack
+---
 
-### Backend
-- **Node.js + Express** - API server
-- **TypeScript** - Type safety
-- **Supabase** - Auth, Database, Storage
-- **Nexus API** - Blockchain integration
-- **Multer** - File uploads
+## Getting Started
 
-### Frontend
-- **React 18 + TypeScript** - UI framework
-- **Vite** - Build tool
-- **TailwindCSS** - Styling
-- **PWA** - Installable mobile app
-- **React Router** - Navigation
+### What You Need
 
-## Project Structure
+1. **Node.js** (version 18 or higher) - [Download here](https://nodejs.org/)
+2. **Supabase account** (free) - [Sign up here](https://supabase.com)
+3. **A code editor** (optional) - Like VS Code
 
-```
-ORIA--MVP/
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   │   ├── supabase.ts      # Supabase client
-│   │   │   └── nexus.ts         # Nexus client (mock + real)
-│   │   ├── controllers/
-│   │   │   ├── auth.controller.ts    # Auth + Nexus account creation
-│   │   │   ├── mint.controller.ts    # Minting & transfers
-│   │   │   ├── upload.controller.ts  # File uploads
-│   │   │   └── nexus.controller.ts   # Nexus API endpoints
-│   │   ├── services/
-│   │   │   └── asset.service.ts      # Asset business logic
-│   │   ├── routes/
-│   │   └── index.ts
-│   └── .env
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Login.tsx        # Login with Nexus session
-│   │   │   ├── Register.tsx     # Registration with PIN
-│   │   │   ├── Home.tsx         # Marketplace home
-│   │   │   ├── Discover.tsx     # Search & browse
-│   │   │   ├── Mint.tsx         # 5-step minting wizard
-│   │   │   ├── Library.tsx      # User's collection
-│   │   │   ├── AssetDetail.tsx  # Asset view + player
-│   │   │   └── Profile.tsx      # User profile
-│   │   ├── components/
-│   │   │   ├── BottomNav.tsx    # Navigation bar
-│   │   │   └── Loader.tsx       # Loading spinner
-│   │   └── services/
-│   │       └── api.ts           # API client
-│   └── .env
-│
-└── README.md
+### Step 1: Download the Code
+
+```bash
+git clone <repository-url>
+cd ORIA--MVP
 ```
 
-## Setup
-
-### 1. Backend Setup
+### Step 2: Set Up the Backend (Server)
 
 ```bash
 cd backend
 npm install
 ```
 
-Create `.env`:
-```env
+Create a file called `.env` and add:
+```
 PORT=3001
-NODE_ENV=development
-
-# Supabase
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Nexus (use 'mock' for development)
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_ANON_KEY=your_supabase_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 NEXUS_BASE_URL=mock
-NEXUS_API_KEY=
 ```
 
-Run:
+Start the server:
 ```bash
 npm run dev
 ```
 
-### 2. Frontend Setup
+You should see: `ORIA Backend server running on port 3001`
 
+### Step 3: Set Up the Frontend (App)
+
+Open a new terminal window:
 ```bash
 cd frontend
 npm install
 ```
 
-Create `.env`:
-```env
+Create a file called `.env` and add:
+```
 VITE_API_URL=http://localhost:3001/api
+VITE_SUPABASE_URL=your_supabase_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_key_here
 ```
 
-Run:
+Start the app:
 ```bash
 npm run dev
 ```
 
-### 3. Database Setup
+### Step 4: Open the App
 
-Run this SQL in Supabase Dashboard → SQL Editor:
-
-```sql
--- Assets table
-CREATE TABLE assets (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL,
-    owner_genesis VARCHAR(256),
-    title VARCHAR(255) NOT NULL,
-    artist VARCHAR(255) NOT NULL,
-    description TEXT,
-    genre VARCHAR(100),
-    price DECIMAL(18, 8) NOT NULL DEFAULT 0,
-    is_limited BOOLEAN DEFAULT FALSE,
-    limited_supply INTEGER,
-    audio_url TEXT NOT NULL,
-    audio_path TEXT NOT NULL,
-    cover_url TEXT,
-    cover_path TEXT,
-    nexus_address VARCHAR(256) UNIQUE,
-    nexus_name VARCHAR(255),
-    nexus_txid VARCHAR(256),
-    status VARCHAR(50) DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    confirmed_at TIMESTAMPTZ,
-    last_error TEXT,
-    retry_count INTEGER DEFAULT 0
-);
-
-CREATE INDEX idx_assets_user_id ON assets(user_id);
-CREATE INDEX idx_assets_nexus_address ON assets(nexus_address);
-CREATE INDEX idx_assets_status ON assets(status);
-
--- Transfers table
-CREATE TABLE asset_transfers (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    asset_id UUID REFERENCES assets(id),
-    from_user_id UUID NOT NULL,
-    from_genesis VARCHAR(256),
-    to_user_id UUID,
-    to_username VARCHAR(255),
-    to_genesis VARCHAR(256),
-    nexus_txid VARCHAR(256),
-    status VARCHAR(50) DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    confirmed_at TIMESTAMPTZ,
-    error TEXT
-);
-
-CREATE INDEX idx_transfers_asset_id ON asset_transfers(asset_id);
-
--- If upgrading from older schema, add the to_user_id column:
--- ALTER TABLE asset_transfers ADD COLUMN IF NOT EXISTS to_user_id UUID;
-```
-
-Also create a storage bucket named `oria-assets` in Supabase Storage.
-
-## API Endpoints
-
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/signup` | Register (creates Nexus wallet) |
-| POST | `/api/auth/login` | Login (returns Nexus session) |
-| POST | `/api/auth/logout` | Logout |
-
-### Minting & Assets
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/mint` | Mint new asset (multipart) |
-| GET | `/api/mint/my-assets` | Get user's assets |
-| GET | `/api/mint/asset/:id` | Get asset with verification |
-| GET | `/api/mint/verify/:address` | Verify on blockchain |
-| POST | `/api/mint/confirm/:id` | Confirm registration |
-| POST | `/api/mint/transfer` | Transfer asset |
-| POST | `/api/mint/transfer/confirm/:id` | Confirm transfer |
-
-### File Upload
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/upload/audio` | Upload audio file |
-| POST | `/api/upload/cover` | Upload cover image |
-| POST | `/api/upload/asset` | Upload both files |
-
-### Nexus
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/nexus/create-account` | Create Nexus account |
-| POST | `/api/nexus/login` | Login to Nexus |
-| GET | `/api/nexus/status` | Node status |
-
-## User Flow
-
-### Registration
-```
-User fills form (email, password, username, PIN)
-         ↓
-Backend creates Nexus blockchain account
-         ↓
-Backend creates Supabase account (stores nexus_genesis)
-         ↓
-User logged in with blockchain wallet ready
-```
-
-### Minting
-```
-Step 1: Upload Audio (.mp3, .wav, etc.)
-Step 2: Upload Cover Art (optional)
-Step 3: Enter Details (title, artist, description)
-Step 4: Set Price (in NXS)
-Step 5: Review & Mint
-         ↓
-Files uploaded to Supabase Storage
-         ↓
-Asset registered on Nexus blockchain
-         ↓
-Stored in database with txid & address
-```
-
-### Transfer
-```
-Owner initiates transfer → enters recipient username
-         ↓
-Verify ownership on blockchain
-         ↓
-Call Nexus transfer API
-         ↓
-Update database, record in transfers table
-```
-
-## Blockchain Modes
-
-| Mode | `.env` Setting | Use Case |
-|------|---------------|----------|
-| Mock | `NEXUS_BASE_URL=mock` | Development without blockchain |
-| Real | `NEXUS_BASE_URL=http://localhost:8080` | Production with Nexus node |
-
-## Pending / Needs Client Input
-
-1. **Nexus Node Access** - Need URL to real Nexus node
-2. **NXS Coins** - Confirm if needed for transactions
-3. **Testnet vs Mainnet** - Which network to use
-4. **Transaction Fees** - Who pays (app or users)
-
-## Screenshots
-
-The app follows a dark theme with purple/blue gradients:
-
-- **Home**: Search bar, category tabs, trending NFTs grid
-- **Mint**: 5-step wizard with upload areas
-- **Library**: Collection list with cover art
-- **Asset Detail**: Full-screen artwork, audio player, provenance
-- **Profile**: User info, menu, logout
-
-## Scripts
-
-### Backend
-```bash
-npm run dev      # Development
-npm run build    # Compile TypeScript
-npm start        # Production
-```
-
-### Frontend
-```bash
-npm run dev      # Development
-npm run build    # Production build
-npm run preview  # Preview build
-```
-
-## License
-
-MIT
+Go to: **http://localhost:3000** in your browser
 
 ---
 
-Built for ORIA - Digital Music & NFT Marketplace on Nexus Blockchain
+## How to Use ORIA
+
+### Creating an Account
+
+1. Click **Sign Up**
+2. Enter your email and password
+3. Choose a username (lowercase, like `johndoe`)
+4. Create a PIN (4+ numbers) - this is for blockchain transactions
+5. Select if you're a **Creator** (making music) or **Listener** (collecting)
+6. Click **Create Account**
+
+Your blockchain wallet is created automatically!
+
+### Minting (Creating) Music
+
+1. Log in to your account
+2. Tap the **+** button to Mint
+3. **Step 1**: Upload your audio file (MP3, WAV, etc.)
+4. **Step 2**: Add cover art (optional)
+5. **Step 3**: Fill in details (title, artist name, description)
+6. **Step 4**: Set a price (in NXS coins)
+7. **Step 5**: Review and tap **Mint**
+
+Your music is now on the blockchain!
+
+### Viewing Your Collection
+
+1. Go to **Library**
+2. See all your minted and collected music
+3. Tap any item to play and see details
+
+### Transferring Music
+
+1. Go to an asset you own
+2. Tap **Transfer**
+3. Enter the recipient's username
+4. Confirm with your PIN
+5. Done! The ownership is transferred.
+
+---
+
+## Features
+
+| Feature | Status |
+|---------|--------|
+| User accounts | ✅ Ready |
+| Blockchain wallet | ✅ Ready |
+| Upload music | ✅ Ready |
+| Upload cover art | ✅ Ready |
+| Mint to blockchain | ✅ Ready |
+| Audio player | ✅ Ready |
+| View collection | ✅ Ready |
+| Transfer ownership | ✅ Ready |
+| Discover music | ✅ Ready |
+
+---
+
+## Project Structure (Simple)
+
+```
+ORIA--MVP/
+├── backend/          <- The server (handles data & blockchain)
+├── frontend/         <- The app (what users see)
+├── docs/             <- Documentation
+└── README.md         <- This file
+```
+
+---
+
+## Testing the App
+
+### Quick Test
+
+1. Import the Postman collection: `ORIA-API.postman_collection.json`
+2. Run the requests in order (Sign Up → Login → Mint → etc.)
+
+### Full Automatic Test
+
+```bash
+cd backend
+npx tsx scripts/e2e-test.ts
+```
+
+This tests the complete flow automatically.
+
+---
+
+## Common Questions
+
+### "What is the blockchain?"
+Think of it like a public record book that can't be changed. When you mint music, it's recorded there permanently.
+
+### "What is NXS?"
+NXS is the currency used on the Nexus blockchain. You'll need some to pay for transactions (like small fees).
+
+### "What is mock mode?"
+Mock mode lets developers test without using real blockchain. Set `NEXUS_BASE_URL=mock` in your backend `.env` file.
+
+### "How do I switch to real blockchain?"
+Change `NEXUS_BASE_URL` to your Nexus node address (like `http://your-node:8080`).
+
+---
+
+## Troubleshooting
+
+### "Server won't start"
+
+1. Make sure you're in the right folder (`backend` or `frontend`)
+2. Run `npm install` first
+3. Check your `.env` file has all required values
+
+### "Can't connect to database"
+
+1. Check your Supabase URL and keys are correct
+2. Make sure your Supabase project is active
+
+### "Minting fails"
+
+1. Make sure you're logged in
+2. Check the file is under 50MB
+3. Try logging out and back in
+
+### "Transfer doesn't work"
+
+1. Make sure the recipient has an ORIA account
+2. Check you typed their username correctly (lowercase)
+3. Make sure you own the asset
+
+---
+
+## For Developers
+
+More technical documentation:
+
+- [Developer Notes](docs/DEVELOPER_NOTES.md) - Architecture & code details
+- [Support Handoff](docs/SUPPORT_HANDOFF.md) - Support & maintenance guide
+- [API Collection](ORIA-API.postman_collection.json) - All API endpoints
+
+### Run Tests
+
+```bash
+# Test blockchain connection
+cd backend
+npx tsx scripts/test-nexus-connection.ts
+
+# Full end-to-end test
+npx tsx scripts/e2e-test.ts
+```
+
+### Build for Production
+
+```bash
+# Backend
+cd backend
+npm run build
+npm start
+
+# Frontend
+cd frontend
+npm run build
+npm run preview
+```
+
+---
+
+## API Quick Reference
+
+| Action | Endpoint | Method |
+|--------|----------|--------|
+| Sign up | `/api/auth/signup` | POST |
+| Log in | `/api/auth/login` | POST |
+| Log out | `/api/auth/logout` | POST |
+| Mint music | `/api/mint` | POST |
+| My music | `/api/mint/my-assets` | GET |
+| Browse music | `/api/mint/discover` | GET |
+| Transfer | `/api/mint/transfer` | POST |
+| Check transaction | `/api/tx/:hash` | GET |
+
+---
+
+## Support
+
+- **Documentation**: Check the `docs/` folder
+- **Issues**: Report bugs on GitHub
+- **Support Period**: 15 days after handoff
+
+---
+
+## Tech Stack (What's Under the Hood)
+
+| Part | Technology |
+|------|------------|
+| App | React, TypeScript |
+| Server | Node.js, Express |
+| Database | Supabase (PostgreSQL) |
+| Blockchain | Nexus |
+| Styling | TailwindCSS |
+| Build Tool | Vite |
+
+---
+
+Built with ❤️ for ORIA - Digital Music on the Blockchain

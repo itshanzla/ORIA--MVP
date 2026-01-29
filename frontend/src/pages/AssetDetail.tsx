@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import BottomNav from '../components/BottomNav';
-import { mintAPI } from '../services/api';
+import { mintAPI, playsAPI } from '../services/api';
 
 interface Asset {
     id: string;
@@ -40,6 +40,7 @@ const AssetDetail: React.FC = () => {
     const [audioError, setAudioError] = useState<string | null>(null);
     const [transferring, setTransferring] = useState(false);
     const [transferError, setTransferError] = useState<string | null>(null);
+    const [playRecorded, setPlayRecorded] = useState(false);
 
     // Load asset from API
     useEffect(() => {
@@ -85,7 +86,20 @@ const AssetDetail: React.FC = () => {
             setDuration(audio.duration);
             setAudioError(null);
         };
-        const handleEnded = () => setIsPlaying(false);
+        const handleEnded = async () => {
+            setIsPlaying(false);
+            // Record play completion
+            if (asset?.id) {
+                try {
+                    const userStr = localStorage.getItem('oria_user');
+                    const userId = userStr ? JSON.parse(userStr).id : undefined;
+                    const sessionId = sessionStorage.getItem('oria_play_session');
+                    await playsAPI.recordComplete(asset.id, userId, sessionId || undefined);
+                } catch (err) {
+                    console.log('Play completion tracking failed:', err);
+                }
+            }
+        };
         const handleError = () => {
             setAudioError('Unable to load audio file');
             setIsPlaying(false);
@@ -107,7 +121,7 @@ const AssetDetail: React.FC = () => {
         };
     }, [asset?.audio_url]);
 
-    const togglePlayPause = () => {
+    const togglePlayPause = async () => {
         const audio = audioRef.current;
         if (!audio) return;
 
@@ -118,6 +132,25 @@ const AssetDetail: React.FC = () => {
                 console.error('Playback failed:', err);
                 setAudioError('Playback failed. Try again.');
             });
+
+            // Record play (only once per session)
+            if (!playRecorded && asset?.id) {
+                try {
+                    const userStr = localStorage.getItem('oria_user');
+                    const userId = userStr ? JSON.parse(userStr).id : undefined;
+                    // Generate session ID for anonymous tracking
+                    let sessionId = sessionStorage.getItem('oria_play_session');
+                    if (!sessionId) {
+                        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        sessionStorage.setItem('oria_play_session', sessionId);
+                    }
+                    await playsAPI.recordPlay(asset.id, userId, sessionId);
+                    setPlayRecorded(true);
+                } catch (err) {
+                    console.log('Play tracking failed:', err);
+                    // Don't block playback on tracking failure
+                }
+            }
         }
         setIsPlaying(!isPlaying);
     };

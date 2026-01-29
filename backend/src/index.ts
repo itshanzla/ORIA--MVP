@@ -6,6 +6,8 @@ import nexusRoutes from './routes/nexus.routes.js';
 import assetsRoutes from './routes/assets.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import mintRoutes from './routes/mint.routes.js';
+import txRoutes from './routes/tx.routes.js';
+import playsRoutes from './routes/plays.routes.js';
 import { initializePlatformWallet, getDailyFeeStats, isPlatformWalletConfigured } from './services/platform-wallet.service.js';
 
 dotenv.config();
@@ -47,6 +49,8 @@ app.use('/api/nexus', nexusRoutes);
 app.use('/api/assets', assetsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/mint', mintRoutes);
+app.use('/api/tx', txRoutes);
+app.use('/api/plays', playsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

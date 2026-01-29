@@ -1,0 +1,721 @@
+{
+  "info": {
+    "_postman_id": "oria-mvp-api-collection",
+    "name": "ORIA MVP API",
+    "description": "Complete API collection for ORIA - Digital Music & NFT Marketplace on Nexus Blockchain",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nexusSession",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assetId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints",
+      "item": [
+        {
+          "name": "Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.success && response.data) {",
+                  "    pm.collectionVariables.set('userId', response.data.user.id);",
+                  "    pm.collectionVariables.set('accessToken', response.data.session.access_token);",
+                  "    if (response.data.nexusSession) {",
+                  "        pm.collectionVariables.set('nexusSession', response.data.nexusSession);",
+                  "    }",
+                  "    pm.test('Signup successful', () => pm.expect(response.success).to.be.true);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"username\": \"testuser\",\n  \"name\": \"Test User\",\n  \"pin\": \"1234\",\n  \"role\": \"creator\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            },
+            "description": "Register a new user. Creates both Supabase account and Nexus blockchain wallet.\n\n**Required fields:**\n- email: Valid email address\n- password: Min 6 characters\n- username: Min 3 characters, lowercase, alphanumeric\n- pin: Min 4 digits (for blockchain transactions)\n- role: 'creator' or 'listener'"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Account created successfully with blockchain wallet\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"email\": \"testuser@example.com\"\n    },\n    \"session\": {\n      \"access_token\": \"jwt-token-here\"\n    },\n    \"nexusSession\": \"nexus-session-token\",\n    \"nexus\": {\n      \"genesis\": \"genesis-hash\",\n      \"username\": \"testuser\",\n      \"txid\": \"transaction-id\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.success && response.data) {",
+                  "    pm.collectionVariables.set('userId', response.data.user.id);",
+                  "    pm.collectionVariables.set('accessToken', response.data.session.access_token);",
+                  "    if (response.data.nexusSession) {",
+                  "        pm.collectionVariables.set('nexusSession', response.data.nexusSession);",
+                  "    }",
+                  "    pm.test('Login successful', () => pm.expect(response.success).to.be.true);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with email and password. Returns Supabase session and Nexus blockchain session."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"email\": \"testuser@example.com\",\n      \"user_metadata\": {\n        \"username\": \"testuser\",\n        \"nexus_username\": \"testuser\",\n        \"nexus_genesis\": \"genesis-hash\"\n      }\n    },\n    \"session\": {\n      \"access_token\": \"jwt-token\"\n    },\n    \"nexusSession\": \"nexus-session-token\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user session."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Minting & Assets",
+      "description": "Asset creation, minting, and management",
+      "item": [
+        {
+          "name": "Mint Asset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.success && response.data && response.data.asset) {",
+                  "    pm.collectionVariables.set('assetId', response.data.asset.id);",
+                  "    pm.test('Mint successful', () => pm.expect(response.success).to.be.true);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "description": "Audio file (mp3, wav, etc.) - max 50MB"
+                },
+                {
+                  "key": "cover",
+                  "type": "file",
+                  "description": "Cover art image (optional)"
+                },
+                {
+                  "key": "title",
+                  "value": "My First Track",
+                  "type": "text"
+                },
+                {
+                  "key": "artist",
+                  "value": "Test Artist",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "A test track for ORIA MVP",
+                  "type": "text"
+                },
+                {
+                  "key": "genre",
+                  "value": "Electronic",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "10",
+                  "type": "text"
+                },
+                {
+                  "key": "isLimited",
+                  "value": "false",
+                  "type": "text"
+                },
+                {
+                  "key": "userId",
+                  "value": "{{userId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "nexusSession",
+                  "value": "{{nexusSession}}",
+                  "type": "text"
+                },
+                {
+                  "key": "nexusPin",
+                  "value": "1234",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mint",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint"]
+            },
+            "description": "Mint a new audio NFT asset. Uploads files to Supabase Storage and registers on Nexus blockchain.\n\n**Required:**\n- audio: Audio file\n- title: Asset title\n- artist: Artist name\n- userId: User ID\n- nexusSession: Nexus session token\n\n**Optional:**\n- cover: Cover art image\n- description: Asset description\n- genre: Music genre\n- price: Price in NXS\n- isLimited: Boolean\n- limitedSupply: Number (if isLimited)"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Asset minted and registered on blockchain\",\n  \"data\": {\n    \"asset\": {\n      \"id\": \"uuid\",\n      \"title\": \"My First Track\",\n      \"artist\": \"Test Artist\",\n      \"nexus_address\": \"blockchain-address\",\n      \"nexus_txid\": \"transaction-id\",\n      \"status\": \"confirming\"\n    },\n    \"nexus\": {\n      \"address\": \"blockchain-address\",\n      \"txid\": \"transaction-id\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get My Assets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mint/my-assets?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "my-assets"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            },
+            "description": "Get all assets owned by the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Asset by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mint/asset/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "asset", "{{assetId}}"]
+            },
+            "description": "Get single asset with blockchain verification status."
+          },
+          "response": []
+        },
+        {
+          "name": "Discover Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mint/discover?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "discover"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get all public assets for marketplace discovery."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trending Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mint/trending?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "trending"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get trending assets for homepage."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Asset on Blockchain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mint/verify/:addressOrName",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "verify", ":addressOrName"],
+              "variable": [
+                {
+                  "key": "addressOrName",
+                  "value": "asset-address-or-name"
+                }
+              ]
+            },
+            "description": "Verify asset exists on Nexus blockchain by address or name."
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Asset Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mint/confirm/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "confirm", "{{assetId}}"]
+            },
+            "description": "Check if asset registration is confirmed on blockchain."
+          },
+          "response": []
+        },
+        {
+          "name": "Retry Failed Mint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nexusSession\": \"{{nexusSession}}\",\n  \"nexusPin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mint/retry/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "retry", "{{assetId}}"]
+            },
+            "description": "Retry a failed asset registration."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transfers",
+      "description": "Asset transfer endpoints",
+      "item": [
+        {
+          "name": "Transfer Asset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"{{assetId}}\",\n  \"userId\": \"{{userId}}\",\n  \"recipientUsername\": \"recipient_username\",\n  \"nexusSession\": \"{{nexusSession}}\",\n  \"nexusPin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/mint/transfer",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "transfer"]
+            },
+            "description": "Transfer asset ownership to another user.\n\n**Required:**\n- assetId: Asset to transfer\n- userId: Current owner's user ID\n- recipientUsername: Recipient's username or email\n- nexusSession: Active Nexus session\n- nexusPin: PIN for transaction signing"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Transfer initiated successfully\",\n  \"data\": {\n    \"transferId\": \"uuid\",\n    \"txid\": \"transaction-id\",\n    \"recipientUserId\": \"uuid\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Confirm Transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mint/transfer/confirm/:transferId",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "transfer", "confirm", ":transferId"],
+              "variable": [
+                {
+                  "key": "transferId",
+                  "value": "transfer-uuid"
+                }
+              ]
+            },
+            "description": "Check if transfer is confirmed on blockchain."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transfer History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mint/transfers/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mint", "transfers", "{{assetId}}"]
+            },
+            "description": "Get transfer history for an asset."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "description": "Transaction lookup endpoints",
+      "item": [
+        {
+          "name": "Get Transaction by Hash",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tx/:hash",
+              "host": ["{{baseUrl}}"],
+              "path": ["tx", ":hash"],
+              "variable": [
+                {
+                  "key": "hash",
+                  "value": "transaction-hash"
+                }
+              ]
+            },
+            "description": "Look up a transaction on the Nexus blockchain by its hash/txid."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"txid\": \"transaction-hash\",\n    \"type\": \"OBJECT\",\n    \"confirmations\": 10,\n    \"timestamp\": 1704067200,\n    \"contracts\": [...]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Nexus Blockchain",
+      "description": "Direct Nexus blockchain endpoints",
+      "item": [
+        {
+          "name": "Create Nexus Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"SecurePassword123!\",\n  \"pin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nexus/create-account",
+              "host": ["{{baseUrl}}"],
+              "path": ["nexus", "create-account"]
+            },
+            "description": "Create a new Nexus blockchain account (sigchain)."
+          },
+          "response": []
+        },
+        {
+          "name": "Nexus Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"existinguser\",\n  \"password\": \"SecurePassword123!\",\n  \"pin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nexus/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["nexus", "login"]
+            },
+            "description": "Login to Nexus and get a session token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Nexus Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nexus/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["nexus", "status"]
+            },
+            "description": "Get Nexus node connection status and system info."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "File Upload",
+      "description": "Direct file upload endpoints",
+      "item": [
+        {
+          "name": "Upload Audio",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "description": "Audio file (mp3, wav, flac, etc.)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/upload/audio",
+              "host": ["{{baseUrl}}"],
+              "path": ["upload", "audio"]
+            },
+            "description": "Upload audio file to Supabase Storage. Max 50MB."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Cover Art",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "cover",
+                  "type": "file",
+                  "description": "Cover art image (jpg, png, webp)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/upload/cover",
+              "host": ["{{baseUrl}}"],
+              "path": ["upload", "cover"]
+            },
+            "description": "Upload cover art image to Supabase Storage."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Both Files",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file"
+                },
+                {
+                  "key": "cover",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/upload/asset",
+              "host": ["{{baseUrl}}"],
+              "path": ["upload", "asset"]
+            },
+            "description": "Upload both audio and cover art files."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Platform",
+      "description": "Platform administration",
+      "item": [
+        {
+          "name": "Get Fee Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/platform/fees",
+              "host": ["{{baseUrl}}"],
+              "path": ["platform", "fees"]
+            },
+            "description": "Get platform fee sponsorship statistics (admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": [""]
+            },
+            "description": "Basic health check endpoint."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
